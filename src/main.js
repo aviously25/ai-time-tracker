@@ -265,6 +265,11 @@ class TimeTrackerApp {
             this.store.set('categoryColors', categoryColors);
             return { success: true };
         });
+
+        // Get app icons
+        ipcMain.handle('get-app-icons', async () => {
+            return await this.databaseManager.getAppIcons();
+        });
     }
 
     setupPowerMonitoring() {

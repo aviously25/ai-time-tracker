@@ -29,18 +29,18 @@ class TimeTrackerUI {
         this.currentActivitiesPage = 1;
         this.totalActivitiesPages = 1;
         this.allActivities = [];
+        this.iconMap = {}; // Added for icon map
 
         this.init();
     }
 
-    init() {
-        console.log('TimeTrackerUI constructed');
+    async init() {
+        // Fetch icon map once on startup
+        this.iconMap = await ipcRenderer.invoke('get-app-icons');
         this.setupEventListeners();
         this.updateCurrentTime();
         this.loadInitialData();
-        console.log('TimeTrackerUI initialized');
         this.setupCharts();
-        console.log('TimeTrackerUI charts setup');
 
         // Update time every second
         setInterval(() => this.updateCurrentTime(), 1000);
@@ -167,10 +167,23 @@ class TimeTrackerUI {
         };
         document.getElementById('pageTitle').textContent = titles[section];
 
-        // Load section-specific data
+        // Load section-specific data and clear others
         if (section === 'activities') {
             this.loadActivities();
-        } else if (section === 'settings') {
+            // Clear dashboard data when switching to activities
+            this.clearDashboardData();
+        } else if (section === 'dashboard') {
+            this.loadDashboardData();
+            // Clear activities data when switching to dashboard
+            this.allActivities = [];
+            if (this.filteredActivities) this.filteredActivities = [];
+        } else {
+            // Clear all data when going to settings
+            this.allActivities = [];
+            if (this.filteredActivities) this.filteredActivities = [];
+            this.clearDashboardData();
+        }
+        if (section === 'settings') {
             this.loadSettings();
         }
     }
@@ -255,10 +268,22 @@ class TimeTrackerUI {
 
     async loadDashboardData() {
         try {
+            // Clear any cached dashboard data before loading new
+            if (this.dashboardActivityData) {
+                this.dashboardActivityData = null;
+            }
+            if (this.dashboardStatistics) {
+                this.dashboardStatistics = null;
+            }
+
             const [activityData, statistics] = await Promise.all([
                 ipcRenderer.invoke('get-activity-data', this.currentDateRange),
                 ipcRenderer.invoke('get-statistics', this.currentDateRange)
             ]);
+
+            // Store references for potential cleanup
+            this.dashboardActivityData = activityData;
+            this.dashboardStatistics = statistics;
 
             this.updateDashboardStats(activityData, statistics);
             this.updateCharts(activityData, statistics);
@@ -373,7 +398,6 @@ class TimeTrackerUI {
     }
 
     setupCharts() {
-        console.log('setupCharts called');
         // Setup pie chart for activity distribution
         const pieCtx = document.getElementById('activityPieChart');
         if (pieCtx) {
@@ -420,9 +444,7 @@ class TimeTrackerUI {
 
         // Setup timeline chart for daily activity
         const timelineCtx = document.getElementById('timelineChart');
-        console.log('timelineCtx:', timelineCtx);
         if (timelineCtx) {
-            console.log('Timeline chart initialized');
             this.charts.timelineChart = new Chart(timelineCtx, {
                 type: 'line',
                 data: {
@@ -500,7 +522,6 @@ class TimeTrackerUI {
     }
 
     updateCharts(activityData, statistics) {
-        console.log('updateCharts called', activityData, statistics);
         // Update pie chart with category distribution
         if (this.charts.pieChart) {
             const categoryData = {};
@@ -521,30 +542,24 @@ class TimeTrackerUI {
         }
         // Update timeline chart
         if (this.charts.timelineChart) {
-            console.log('updateCharts: updating timeline chart');
             this.updateTimelineChart(activityData);
         }
     }
 
     updateTimelineChart(activityData) {
-        console.log('updateTimelineChart called', activityData);
         if (!activityData || activityData.length === 0) {
             this.charts.timelineChart.data.labels = [];
             this.charts.timelineChart.data.datasets = [];
             this.charts.timelineChart.update();
-            console.log('updateTimelineChart: no data, cleared chart');
             return;
         }
         const timelineData = this.processTimelineData(activityData);
-        console.log('updateTimelineChart: processed data', timelineData);
         this.charts.timelineChart.data.labels = timelineData.labels;
         this.charts.timelineChart.data.datasets = timelineData.datasets;
         this.charts.timelineChart.update();
-        console.log('updateTimelineChart: chart data after update', this.charts.timelineChart.data);
     }
 
     processTimelineData(activityData) {
-        console.log('processTimelineData called', activityData);
         const categories = [...new Set(activityData.map(a => a.category))];
         // Use the correct color for each category
         const colors = this.generateChartColors(categories);
@@ -589,7 +604,6 @@ class TimeTrackerUI {
             });
         });
         const result = { labels, datasets };
-        console.log('processTimelineData result', result);
         return result;
     }
 
@@ -598,13 +612,12 @@ class TimeTrackerUI {
         const topAppsContainer = document.getElementById('topApps');
         if (statistics.topApps && statistics.topApps.length > 0) {
             topAppsContainer.innerHTML = statistics.topApps.map(app => {
-                // Try to get icon for the app
+                // Use icon from iconMap
                 let iconHtml = `<i class="fas fa-desktop"></i>`;
-                const iconBase64 = app.iconBase64 || app.icon_base64;
+                const iconBase64 = this.iconMap && app.process_name ? this.iconMap[app.process_name] : null;
                 if (iconBase64) {
                     iconHtml = `<img src="${iconBase64}" alt="${app.process_name}" class="list-app-icon">`;
                 }
-
                 return `
                     <div class="list-item">
                         <div class="list-item-left">
@@ -629,23 +642,26 @@ class TimeTrackerUI {
             `;
         }
 
-        // Update top websites
+        // Update top websites (future-proof: use iconMap if you add website icons)
         const topWebsitesContainer = document.getElementById('topWebsites');
         if (statistics.topWebsites && statistics.topWebsites.length > 0) {
-            topWebsitesContainer.innerHTML = statistics.topWebsites.map(site => `
-                <div class="list-item">
-                    <div class="list-item-left">
-                        <div class="list-item-icon">
-                            <i class="fas fa-globe"></i>
+            topWebsitesContainer.innerHTML = statistics.topWebsites.map(site => {
+                // If you ever add website icons, use iconMap[site.domain] here
+                return `
+                    <div class="list-item">
+                        <div class="list-item-left">
+                            <div class="list-item-icon">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <div class="list-item-info">
+                                <h4>${site.domain}</h4>
+                                <small>${site.sessions} sessions</small>
+                            </div>
                         </div>
-                        <div class="list-item-info">
-                            <h4>${site.domain}</h4>
-                            <small>${site.sessions} sessions</small>
-                        </div>
+                        <div class="list-item-time">${this.formatDuration(site.total_time)}</div>
                     </div>
-                    <div class="list-item-time">${this.formatDuration(site.total_time)}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         } else {
             topWebsitesContainer.innerHTML = `
                 <div class="empty-state">
@@ -658,7 +674,11 @@ class TimeTrackerUI {
 
     async loadActivities() {
         try {
+            // Always clear old data before loading new
+            this.allActivities = [];
+            if (this.filteredActivities) this.filteredActivities = [];
             const activities = await ipcRenderer.invoke('get-activity-data', this.currentDateRange);
+            // No iconBase64/icon_base64 in activities anymore
             this.allActivities = activities;
             this.currentActivitiesPage = 1;
             this.totalActivitiesPages = Math.max(1, Math.ceil(activities.length / this.activitiesPerPage));
@@ -673,41 +693,16 @@ class TimeTrackerUI {
         const endIdx = startIdx + this.activitiesPerPage;
         const activities = this.allActivities.slice(startIdx, endIdx);
         this.renderActivities(activities);
-        this.renderActivitiesPagination();
     }
 
     renderActivitiesPagination() {
-        const container = document.getElementById('activitiesList');
-        let paginationHtml = '';
-        if (this.totalActivitiesPages > 1) {
-            paginationHtml = `
-                <div class="activities-pagination">
-                    <button id="activitiesPrevPage" ${this.currentActivitiesPage === 1 ? 'disabled' : ''}>Prev</button>
-                    <span>Page ${this.currentActivitiesPage} of ${this.totalActivitiesPages}</span>
-                    <button id="activitiesNextPage" ${this.currentActivitiesPage === this.totalActivitiesPages ? 'disabled' : ''}>Next</button>
-                </div>
-            `;
-        }
-        // Append pagination controls after the list
-        container.insertAdjacentHTML('beforeend', paginationHtml);
-        if (this.totalActivitiesPages > 1) {
-            document.getElementById('activitiesPrevPage').addEventListener('click', () => {
-                if (this.currentActivitiesPage > 1) {
-                    this.currentActivitiesPage--;
-                    this.renderActivitiesPage();
-                }
-            });
-            document.getElementById('activitiesNextPage').addEventListener('click', () => {
-                if (this.currentActivitiesPage < this.totalActivitiesPages) {
-                    this.currentActivitiesPage++;
-                    this.renderActivitiesPage();
-                }
-            });
-        }
+        // No longer needed: pagination is rendered as part of renderActivities
     }
 
     renderActivities(activities) {
         const container = document.getElementById('activitiesList');
+        // Always clear the container before rendering
+        container.innerHTML = '';
 
         // Bulk actions bar
         let bulkBarHtml = '';
@@ -725,32 +720,29 @@ class TimeTrackerUI {
             `;
         }
 
+        let activitiesHtml = '';
         if (activities.length === 0) {
-            container.innerHTML = `
-                ${bulkBarHtml}
+            activitiesHtml = `
                 <div class="empty-state">
                     <i class="fas fa-list"></i>
                     <p>No activities recorded yet</p>
                     <small>Start tracking to see your activities here</small>
                 </div>
             `;
-            return;
-        }
-
-        container.innerHTML = `
-            ${bulkBarHtml}
-            ${activities.map(activity => {
-            // Determine icon to display
-            let iconHtml = '';
-            const iconBase64 = activity.iconBase64 || activity.icon_base64;
-            if (iconBase64) {
-                iconHtml = `<img src="${iconBase64}" alt="${activity.processName}" class="activity-app-icon">`;
-            } else {
-                iconHtml = `<i class="fas ${this.getActivityIcon(activity.category)}"></i>`;
-            }
-            const checked = this.selectedActivityIds.has(activity.id) ? 'checked' : '';
-            const catColor = this.categoryColors[activity.category] || '#cccccc';
-            return `
+        } else {
+            activitiesHtml = activities.map(activity => {
+                // Use icon from iconMap
+                let iconHtml = '';
+                const processKey = activity.processName || activity.process_name;
+                const iconBase64 = this.iconMap && processKey ? this.iconMap[processKey] : null;
+                if (iconBase64) {
+                    iconHtml = `<img src="${iconBase64}" alt="${processKey}" class="activity-app-icon">`;
+                } else {
+                    iconHtml = `<i class="fas ${this.getActivityIcon(activity.category)}"></i>`;
+                }
+                const checked = this.selectedActivityIds.has(activity.id) ? 'checked' : '';
+                const catColor = this.categoryColors[activity.category] || '#cccccc';
+                return `
                     <div class="activity-item improved-activity-row" data-activity-id="${activity.id}" style="border-left: 6px solid ${catColor};">
                         <input type="checkbox" class="activity-select-checkbox" data-activity-id="${activity.id}" ${checked} />
                         <div class="activity-icon">
@@ -775,8 +767,23 @@ class TimeTrackerUI {
                         <div class="activity-time">${this.formatDuration(activity.duration)}</div>
                     </div>
                 `;
-        }).join('')}
-        `;
+            }).join('');
+        }
+
+        // Pagination controls
+        let paginationHtml = '';
+        if (this.totalActivitiesPages > 1) {
+            paginationHtml = `
+                <div class="activities-pagination">
+                    <button id="activitiesPrevPage" ${this.currentActivitiesPage === 1 ? 'disabled' : ''}>Prev</button>
+                    <span>Page ${this.currentActivitiesPage} of ${this.totalActivitiesPages}</span>
+                    <button id="activitiesNextPage" ${this.currentActivitiesPage === this.totalActivitiesPages ? 'disabled' : ''}>Next</button>
+                </div>
+            `;
+        }
+
+        // Render all at once
+        container.innerHTML = `${bulkBarHtml}${activitiesHtml}${paginationHtml}`;
 
         // Attach change handlers for category dropdowns
         container.querySelectorAll('.activity-category-select').forEach(select => {
@@ -818,6 +825,28 @@ class TimeTrackerUI {
                 clearBulkBtn.addEventListener('click', () => {
                     this.selectedActivityIds.clear();
                     this.renderActivities(activities);
+                });
+            }
+        }
+
+        // Pagination handlers
+        if (this.totalActivitiesPages > 1) {
+            const prevBtn = document.getElementById('activitiesPrevPage');
+            const nextBtn = document.getElementById('activitiesNextPage');
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (this.currentActivitiesPage > 1) {
+                        this.currentActivitiesPage--;
+                        this.renderActivitiesPage();
+                    }
+                });
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (this.currentActivitiesPage < this.totalActivitiesPages) {
+                        this.currentActivitiesPage++;
+                        this.renderActivitiesPage();
+                    }
                 });
             }
         }
@@ -878,7 +907,6 @@ class TimeTrackerUI {
         const endIdx = startIdx + this.activitiesPerPage;
         const activities = this.filteredActivities.slice(startIdx, endIdx);
         this.renderActivities(activities);
-        this.renderActivitiesPagination();
     }
 
     async loadSettings() {
@@ -1389,6 +1417,21 @@ Respond with only the category name.`;
         const usedColors = Object.values(this.categoryColors);
         const available = this.defaultCategoryColors.find(c => !usedColors.includes(c));
         this.categoryColors[newCat] = available || '#cccccc';
+    }
+
+    clearDashboardData() {
+        // Clear dashboard cached data
+        this.dashboardActivityData = null;
+        this.dashboardStatistics = null;
+        // Clear any chart data references
+        if (this.charts.pieChart) {
+            this.charts.pieChart.data.labels = [];
+            this.charts.pieChart.data.datasets[0].data = [];
+        }
+        if (this.charts.timelineChart) {
+            this.charts.timelineChart.data.labels = [];
+            this.charts.timelineChart.data.datasets = [];
+        }
     }
 }
 
