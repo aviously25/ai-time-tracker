@@ -239,11 +239,77 @@ class TimeTrackerUI {
     }
 
     setupCharts() {
-        // Removed category chart setup for performance
+        // Setup pie chart for activity distribution
+        const pieCtx = document.getElementById('activityPieChart');
+        if (pieCtx) {
+            this.charts.pieChart = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+                            '#8B5CF6', '#06B6D4', '#F97316', '#84CC16',
+                            '#EC4899', '#6B7280'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${this.formatDuration(value * 60)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 
     updateCharts(activityData, statistics) {
-        // Removed category chart update logic for performance
+        // Update pie chart with category distribution
+        if (this.charts.pieChart) {
+            const categoryData = {};
+
+            // Group activities by category and sum durations
+            activityData.forEach(activity => {
+                const category = activity.category || 'other';
+                if (!categoryData[category]) {
+                    categoryData[category] = 0;
+                }
+                categoryData[category] += activity.duration || 0;
+            });
+
+            // Convert to chart format
+            const labels = Object.keys(categoryData).map(cat => cat.replace('_', ' '));
+            const data = Object.values(categoryData).map(seconds => Math.round(seconds / 60)); // Convert to minutes
+
+            this.charts.pieChart.data.labels = labels;
+            this.charts.pieChart.data.datasets[0].data = data;
+            this.charts.pieChart.update();
+        }
     }
 
     updateLists(statistics) {
