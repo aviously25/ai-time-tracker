@@ -732,13 +732,19 @@ body {
 .category-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     padding: 6px 0;
     border-bottom: 1px solid #f1f5f9;
+    min-height: 36px;
+    position: relative;
 }
 
 .category-item:last-child {
     border-bottom: none;
+}
+
+.category-item .category-name {
+    min-width: 110px;
 }
 
 .category-name {
@@ -1038,8 +1044,10 @@ body {
 }
 
 .category-description-text {
-    font-size: 12px;
+    font-size: 13px;
     color: #6b7280;
+    margin-top: 2px;
+    margin-bottom: 2px;
     line-height: 1.4;
 }
 
@@ -1117,4 +1125,269 @@ body {
 
 .refresh-activities i {
     font-size: 16px;
+}
+
+/* Bulk Actions Bar Styles */
+.bulk-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f1f5f9;
+    padding: 12px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 8px;
+}
+
+.bulk-actions-bar select {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.bulk-actions-bar button {
+    padding: 6px 16px;
+    font-size: 13px;
+}
+
+.bulk-actions-bar .btn-primary {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+.bulk-actions-bar .btn-secondary {
+    background: #f1f5f9;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+
+/* Category Color Swatch and Picker */
+.category-color-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    margin-right: 8px;
+    border: 1px solid #d1d5db;
+    vertical-align: middle;
+}
+
+.category-color-picker {
+    margin-right: 8px;
+    vertical-align: middle;
+    border: none;
+    background: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+}
+
+/* Modern Category Select and Activity Row Border */
+.modern-category-select {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #1e293b;
+    font-size: 15px;
+    padding: 7px 30px 7px 12px;
+    min-width: 110px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: border 0.2s, box-shadow 0.2s;
+}
+
+.modern-category-select:focus {
+    border: 1.5px solid #6366f1;
+    outline: none;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+}
+
+.improved-activity-row {
+    border-left-width: 6px !important;
+    border-left-style: solid !important;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+/* Visually hidden (for accessible color input) */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+/* Category row flex layout */
+.category-row-flex {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f5f9;
+    min-height: 44px;
+    position: relative;
+}
+
+.category-swatch-col {
+    width: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.category-color-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    vertical-align: middle;
+    display: inline-block;
+    margin: 0;
+}
+
+.category-info-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    padding-left: 8px;
+}
+
+.category-remove-col {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 90px;
+    padding-left: 12px;
+    height: 100%;
+}
+
+.category-description-editable {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.category-description-text {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    line-height: 1.4;
+    flex: 1;
+    word-break: break-word;
+}
+
+.edit-description-btn {
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-size: 13px;
+    margin-left: 6px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+    height: 22px;
+    display: flex;
+    align-items: center;
+}
+
+.edit-description-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.category-description-input {
+    width: 100%;
+    min-height: 38px;
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    margin-top: 2px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.category-description-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.save-description-btn,
+.cancel-description-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.save-description-btn {
+    background: #10b981;
+    color: white;
+}
+
+.save-description-btn:hover {
+    background: #059669;
+}
+
+.cancel-description-btn {
+    background: #6b7280;
+    color: white;
+}
+
+.cancel-description-btn:hover {
+    background: #4b5563;
+}
+
+/* Remove old .category-item overrides for justify-content */
+.category-item {
+    justify-content: unset;
+}
+
+.activities-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 18px 0 8px 0;
+}
+
+.activities-pagination button {
+    padding: 7px 18px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    background: #667eea;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.activities-pagination button:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.activities-pagination span {
+    font-size: 15px;
+    color: #374151;
+    font-weight: 500;
 }

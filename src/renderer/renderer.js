@@ -17,6 +17,18 @@ class TimeTrackerUI {
         this.customCategorizationPrompt = '';
         this.categoryDescriptions = {};
         this.editingCategoryDescription = null;
+        this.selectedActivityIds = new Set(); // Track selected activities for bulk actions
+        this.categoryColors = {};
+        this.defaultCategoryColors = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+            '#8B5CF6', '#06B6D4', '#F97316', '#84CC16',
+            '#EC4899', '#6B7280', '#F472B6', '#A78BFA',
+            '#34D399', '#FBBF24', '#FB7185', '#E11D48'
+        ];
+        this.activitiesPerPage = 50;
+        this.currentActivitiesPage = 1;
+        this.totalActivitiesPages = 1;
+        this.allActivities = [];
 
         this.init();
     }
@@ -90,6 +102,7 @@ class TimeTrackerUI {
             const newCat = input.value.trim();
             if (newCat && !this.categories.includes(newCat)) {
                 this.categories.push(newCat);
+                this.addCategoryWithColor(newCat);
                 this.updateCategoryWeight(newCat, this.getDefaultWeight(newCat));
                 this.renderCategories();
                 this.renderCategoryWeights();
@@ -473,22 +486,10 @@ class TimeTrackerUI {
         }
     }
 
-    generateChartColors() {
-        // Generate colors for the chart based on the number of categories
-        const baseColors = [
-            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
-            '#8B5CF6', '#06B6D4', '#F97316', '#84CC16',
-            '#EC4899', '#6B7280', '#84CC16', '#F472B6',
-            '#A78BFA', '#34D399', '#FBBF24', '#FB7185'
-        ];
-
-        // If we have more categories than base colors, cycle through them
-        const numCategories = this.categories ? this.categories.length : 10;
-        const colors = [];
-        for (let i = 0; i < numCategories; i++) {
-            colors.push(baseColors[i % baseColors.length]);
-        }
-        return colors;
+    generateChartColors(categoriesOverride) {
+        // Always use the color for each category from categoryColors
+        const cats = categoriesOverride || this.categories;
+        return cats.map(cat => this.categoryColors[cat] || '#cccccc');
     }
 
     updateChartColors() {
@@ -503,8 +504,6 @@ class TimeTrackerUI {
         // Update pie chart with category distribution
         if (this.charts.pieChart) {
             const categoryData = {};
-
-            // Group activities by category and sum durations
             activityData.forEach(activity => {
                 const category = activity.category || 'other';
                 if (!categoryData[category]) {
@@ -512,16 +511,14 @@ class TimeTrackerUI {
                 }
                 categoryData[category] += activity.duration || 0;
             });
-
-            // Convert to chart format
             const labels = Object.keys(categoryData).map(cat => cat.replace('_', ' '));
-            const data = Object.values(categoryData).map(seconds => Math.round(seconds / 60)); // Convert to minutes
-
+            const data = Object.values(categoryData).map(seconds => Math.round(seconds / 60));
+            const cats = Object.keys(categoryData);
             this.charts.pieChart.data.labels = labels;
             this.charts.pieChart.data.datasets[0].data = data;
+            this.charts.pieChart.data.datasets[0].backgroundColor = this.generateChartColors(cats);
             this.charts.pieChart.update();
         }
-
         // Update timeline chart
         if (this.charts.timelineChart) {
             console.log('updateCharts: updating timeline chart');
@@ -532,19 +529,14 @@ class TimeTrackerUI {
     updateTimelineChart(activityData) {
         console.log('updateTimelineChart called', activityData);
         if (!activityData || activityData.length === 0) {
-            // Clear chart if no data
             this.charts.timelineChart.data.labels = [];
             this.charts.timelineChart.data.datasets = [];
             this.charts.timelineChart.update();
             console.log('updateTimelineChart: no data, cleared chart');
             return;
         }
-
-        // Process data into hourly timeline
         const timelineData = this.processTimelineData(activityData);
         console.log('updateTimelineChart: processed data', timelineData);
-
-        // Update chart data
         this.charts.timelineChart.data.labels = timelineData.labels;
         this.charts.timelineChart.data.datasets = timelineData.datasets;
         this.charts.timelineChart.update();
@@ -553,11 +545,9 @@ class TimeTrackerUI {
 
     processTimelineData(activityData) {
         console.log('processTimelineData called', activityData);
-        // Get unique categories
         const categories = [...new Set(activityData.map(a => a.category))];
-        const colors = this.generateChartColors();
-
-        // Create hourly buckets (24 hours)
+        // Use the correct color for each category
+        const colors = this.generateChartColors(categories);
         const hourlyData = {};
         for (let hour = 0; hour < 24; hour++) {
             hourlyData[hour] = {};
@@ -565,43 +555,32 @@ class TimeTrackerUI {
                 hourlyData[hour][category] = 0;
             });
         }
-
-        // Distribute activities across hours
         activityData.forEach(activity => {
             const startTime = new Date(activity.timestamp);
             const startHour = startTime.getHours();
             const duration = activity.duration || 0;
             const category = activity.category || 'other';
-
-            // Add duration to the hour bucket
             if (hourlyData[startHour]) {
                 hourlyData[startHour][category] += duration;
             }
         });
-
-        // Convert to chart format
         const labels = [];
         const datasets = [];
-
-        // Create labels for each hour
         for (let hour = 0; hour < 24; hour++) {
             const timeString = `${hour.toString().padStart(2, '0')}:00`;
             labels.push(timeString);
         }
-
-        // Create dataset for each category
         categories.forEach((category, index) => {
             const data = [];
             for (let hour = 0; hour < 24; hour++) {
                 const durationMinutes = Math.round((hourlyData[hour][category] || 0) / 60);
                 data.push(durationMinutes);
             }
-
             datasets.push({
                 label: category.replace('_', ' '),
                 data: data,
-                borderColor: colors[index % colors.length],
-                backgroundColor: colors[index % colors.length] + '20', // Add transparency
+                borderColor: this.categoryColors[category] || colors[index] || '#cccccc',
+                backgroundColor: (this.categoryColors[category] || colors[index] || '#cccccc') + '20',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
@@ -609,7 +588,6 @@ class TimeTrackerUI {
                 pointHoverRadius: 5
             });
         });
-
         const result = { labels, datasets };
         console.log('processTimelineData result', result);
         return result;
@@ -681,17 +659,75 @@ class TimeTrackerUI {
     async loadActivities() {
         try {
             const activities = await ipcRenderer.invoke('get-activity-data', this.currentDateRange);
-            this.renderActivities(activities);
+            this.allActivities = activities;
+            this.currentActivitiesPage = 1;
+            this.totalActivitiesPages = Math.max(1, Math.ceil(activities.length / this.activitiesPerPage));
+            this.renderActivitiesPage();
         } catch (error) {
             console.error('Error loading activities:', error);
+        }
+    }
+
+    renderActivitiesPage() {
+        const startIdx = (this.currentActivitiesPage - 1) * this.activitiesPerPage;
+        const endIdx = startIdx + this.activitiesPerPage;
+        const activities = this.allActivities.slice(startIdx, endIdx);
+        this.renderActivities(activities);
+        this.renderActivitiesPagination();
+    }
+
+    renderActivitiesPagination() {
+        const container = document.getElementById('activitiesList');
+        let paginationHtml = '';
+        if (this.totalActivitiesPages > 1) {
+            paginationHtml = `
+                <div class="activities-pagination">
+                    <button id="activitiesPrevPage" ${this.currentActivitiesPage === 1 ? 'disabled' : ''}>Prev</button>
+                    <span>Page ${this.currentActivitiesPage} of ${this.totalActivitiesPages}</span>
+                    <button id="activitiesNextPage" ${this.currentActivitiesPage === this.totalActivitiesPages ? 'disabled' : ''}>Next</button>
+                </div>
+            `;
+        }
+        // Append pagination controls after the list
+        container.insertAdjacentHTML('beforeend', paginationHtml);
+        if (this.totalActivitiesPages > 1) {
+            document.getElementById('activitiesPrevPage').addEventListener('click', () => {
+                if (this.currentActivitiesPage > 1) {
+                    this.currentActivitiesPage--;
+                    this.renderActivitiesPage();
+                }
+            });
+            document.getElementById('activitiesNextPage').addEventListener('click', () => {
+                if (this.currentActivitiesPage < this.totalActivitiesPages) {
+                    this.currentActivitiesPage++;
+                    this.renderActivitiesPage();
+                }
+            });
         }
     }
 
     renderActivities(activities) {
         const container = document.getElementById('activitiesList');
 
+        // Bulk actions bar
+        let bulkBarHtml = '';
+        if (this.selectedActivityIds.size > 0) {
+            bulkBarHtml = `
+                <div class="bulk-actions-bar">
+                    <span>${this.selectedActivityIds.size} selected</span>
+                    <select id="bulkCategorySelect">
+                        <option value="">Change category...</option>
+                        ${this.categories.map(cat => `<option value="${cat}">${cat.replace('_', ' ')}</option>`).join('')}
+                    </select>
+                    <button id="applyBulkCategoryBtn" class="btn-primary">Apply</button>
+                    <button id="clearBulkSelectionBtn" class="btn-secondary">Clear Selection</button>
+                </div>
+            `;
+        }
+
         if (activities.length === 0) {
             container.innerHTML = `
+                ${bulkBarHtml}
                 <div class="empty-state">
                     <i class="fas fa-list"></i>
                     <p>No activities recorded yet</p>
@@ -701,7 +737,9 @@ class TimeTrackerUI {
             return;
         }
 
-        container.innerHTML = activities.map(activity => {
+        container.innerHTML = `
+            ${bulkBarHtml}
+            ${activities.map(activity => {
             // Determine icon to display
             let iconHtml = '';
             const iconBase64 = activity.iconBase64 || activity.icon_base64;
@@ -710,28 +748,35 @@ class TimeTrackerUI {
             } else {
                 iconHtml = `<i class="fas ${this.getActivityIcon(activity.category)}"></i>`;
             }
-
+            const checked = this.selectedActivityIds.has(activity.id) ? 'checked' : '';
+            const catColor = this.categoryColors[activity.category] || '#cccccc';
             return `
-                <div class="activity-item" data-activity-id="${activity.id}">
-                    <div class="activity-icon">
-                        ${iconHtml}
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-title">${activity.windowTitle}</div>
-                        <div class="activity-meta">
-                            <span>${activity.processName}</span>
-                            <span>${new Date(activity.timestamp).toLocaleTimeString()}</span>
-                            <select class="activity-category-select" data-activity-id="${activity.id}">
-                                ${this.categories.map(cat => `
-                                    <option value="${cat}" ${cat === activity.category ? 'selected' : ''}>${cat.replace('_', ' ')}</option>
-                                `).join('')}
-                            </select>
+                    <div class="activity-item improved-activity-row" data-activity-id="${activity.id}" style="border-left: 6px solid ${catColor};">
+                        <input type="checkbox" class="activity-select-checkbox" data-activity-id="${activity.id}" ${checked} />
+                        <div class="activity-icon">
+                            ${iconHtml}
                         </div>
+                        <div class="activity-content">
+                            <div class="activity-title">${activity.windowTitle}</div>
+                            <div class="activity-meta">
+                                <span>${activity.processName}</span>
+                                <span>${new Date(activity.timestamp).toLocaleTimeString()}</span>
+                                <div class="category-select-wrapper">
+                                    <select class="activity-category-select improved-category-select modern-category-select" data-activity-id="${activity.id}">
+                                        ${this.categories.map(cat => `
+                                            <option value="${cat}" ${cat === activity.category ? 'selected' : ''}>
+                                                ${cat.replace('_', ' ')}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="activity-time">${this.formatDuration(activity.duration)}</div>
                     </div>
-                    <div class="activity-time">${this.formatDuration(activity.duration)}</div>
-                </div>
-            `;
-        }).join('');
+                `;
+        }).join('')}
+        `;
 
         // Attach change handlers for category dropdowns
         container.querySelectorAll('.activity-category-select').forEach(select => {
@@ -741,6 +786,41 @@ class TimeTrackerUI {
                 await this.updateActivityCategory(activityId, newCategory);
             });
         });
+
+        // Attach handlers for checkboxes
+        container.querySelectorAll('.activity-select-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const activityId = parseInt(checkbox.getAttribute('data-activity-id'));
+                if (checkbox.checked) {
+                    this.selectedActivityIds.add(activityId);
+                } else {
+                    this.selectedActivityIds.delete(activityId);
+                }
+                this.renderActivities(activities); // Re-render to update bulk bar
+            });
+        });
+
+        // Bulk actions handlers
+        if (this.selectedActivityIds.size > 0) {
+            const bulkCategorySelect = document.getElementById('bulkCategorySelect');
+            const applyBulkBtn = document.getElementById('applyBulkCategoryBtn');
+            const clearBulkBtn = document.getElementById('clearBulkSelectionBtn');
+            if (applyBulkBtn) {
+                applyBulkBtn.addEventListener('click', async () => {
+                    const newCategory = bulkCategorySelect.value;
+                    if (!newCategory) return;
+                    await this.bulkUpdateActivityCategory(Array.from(this.selectedActivityIds), newCategory);
+                    this.selectedActivityIds.clear();
+                    this.loadActivities();
+                });
+            }
+            if (clearBulkBtn) {
+                clearBulkBtn.addEventListener('click', () => {
+                    this.selectedActivityIds.clear();
+                    this.renderActivities(activities);
+                });
+            }
+        }
     }
 
     async updateActivityCategory(activityId, newCategory) {
@@ -749,6 +829,15 @@ class TimeTrackerUI {
             this.showNotification('Category updated!', 'success');
         } catch (error) {
             this.showNotification('Failed to update category', 'error');
+        }
+    }
+
+    async bulkUpdateActivityCategory(activityIds, newCategory) {
+        try {
+            await ipcRenderer.invoke('bulk-update-activity-category', { ids: activityIds, category: newCategory });
+            this.showNotification('Categories updated!', 'success');
+        } catch (error) {
+            this.showNotification('Failed to update categories', 'error');
         }
     }
 
@@ -770,19 +859,26 @@ class TimeTrackerUI {
     filterActivities() {
         const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
         const categoryFilter = document.getElementById('categoryFilter').value;
-
-        const activityItems = document.querySelectorAll('.activity-item');
-
-        activityItems.forEach(item => {
-            const title = item.querySelector('.activity-title').textContent.toLowerCase();
-            const categorySelect = item.querySelector('.activity-category-select');
-            const category = categorySelect ? categorySelect.value.toLowerCase() : '';
-
+        // Filter allActivities, then re-render page 1
+        const filtered = this.allActivities.filter(activity => {
+            const title = (activity.windowTitle || '').toLowerCase();
+            const category = (activity.category || '').toLowerCase();
             const matchesSearch = title.includes(searchTerm);
             const matchesCategory = !categoryFilter || category.includes(categoryFilter);
-
-            item.style.display = matchesSearch && matchesCategory ? 'flex' : 'none';
+            return matchesSearch && matchesCategory;
         });
+        this.currentActivitiesPage = 1;
+        this.totalActivitiesPages = Math.max(1, Math.ceil(filtered.length / this.activitiesPerPage));
+        this.filteredActivities = filtered;
+        this.renderActivitiesPageFiltered();
+    }
+
+    renderActivitiesPageFiltered() {
+        const startIdx = (this.currentActivitiesPage - 1) * this.activitiesPerPage;
+        const endIdx = startIdx + this.activitiesPerPage;
+        const activities = this.filteredActivities.slice(startIdx, endIdx);
+        this.renderActivities(activities);
+        this.renderActivitiesPagination();
     }
 
     async loadSettings() {
@@ -813,6 +909,8 @@ class TimeTrackerUI {
             // Load category descriptions
             this.categoryDescriptions = settings.categoryDescriptions || {};
 
+            this.categoryColors = settings.categoryColors || this.generateDefaultCategoryColors(this.categories);
+
             this.renderCategories();
             this.renderCategoryWeights();
             this.renderAppOverrides();
@@ -820,6 +918,7 @@ class TimeTrackerUI {
             this.updateCategoryFilterDropdown();
             this.updateAppOverrideCategoryDropdown();
             this.updateCustomPromptField();
+            this.saveCategoryColors();
         } catch (error) {
             console.error('Error loading settings:', error);
         }
@@ -972,17 +1071,88 @@ Respond with only the category name.`;
             list.innerHTML = '<div style="color:#6b7280;">No categories defined.</div>';
             return;
         }
-        list.innerHTML = this.categories.map(cat => `
-            <div class="category-item">
-                <span class="category-name">${cat}</span>
-                <button class="remove-category-btn" data-cat="${cat}">Remove</button>
-            </div>
-        `).join('');
+        list.innerHTML = this.categories.map(cat => {
+            const color = this.categoryColors[cat] || '#ccc';
+            const description = this.categoryDescriptions[cat] || '';
+            const inputId = `color-input-${cat}`;
+            const isEditing = this.editingCategoryDescription === cat;
+            return `
+                <div class="category-item category-row-flex">
+                    <div class="category-swatch-col">
+                        <label for="${inputId}" class="category-color-swatch category-color-picker-swatch" style="background:${color}; cursor:pointer;" title="Change color"></label>
+                        <input type="color" id="${inputId}" class="category-color-picker visually-hidden" data-cat="${cat}" value="${color}" />
+                    </div>
+                    <div class="category-info-col">
+                        <span class="category-name">${cat}</span>
+                        <div class="category-description-editable">
+                            ${isEditing
+                    ? `<textarea class="category-description-input" data-cat="${cat}">${description}</textarea>
+                                   <div class="category-description-actions">
+                                       <button class="save-description-btn" data-cat="${cat}">Save</button>
+                                       <button class="cancel-description-btn" data-cat="${cat}">Cancel</button>
+                                   </div>`
+                    : description
+                        ? `<div class="category-description-text">${description}</div>
+                                       <button class="edit-description-btn" data-cat="${cat}" title="Edit description"><i class="fas fa-pen"></i></button>`
+                        : `<button class="edit-description-btn" data-cat="${cat}" title="Add description"><i class="fas fa-pen"></i></button>`
+                }
+                        </div>
+                    </div>
+                    <div class="category-remove-col">
+                        <button class="remove-category-btn" data-cat="${cat}">Remove</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
         // Attach remove handlers
         list.querySelectorAll('.remove-category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const cat = btn.getAttribute('data-cat');
                 this.removeCategory(cat);
+            });
+        });
+        // Attach color pickers (click swatch opens input)
+        list.querySelectorAll('.category-color-picker-swatch').forEach(swatch => {
+            swatch.addEventListener('click', (e) => {
+                const input = swatch.parentNode.querySelector('.category-color-picker');
+                if (input) input.click();
+            });
+        });
+        list.querySelectorAll('.category-color-picker').forEach(picker => {
+            picker.addEventListener('input', (e) => {
+                const cat = picker.getAttribute('data-cat');
+                this.categoryColors[cat] = picker.value;
+                this.saveCategoryColors();
+                this.renderCategories();
+                this.updateChartColors();
+            });
+        });
+        // Attach edit/save/cancel handlers for descriptions
+        list.querySelectorAll('.edit-description-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const cat = btn.getAttribute('data-cat');
+                this.editingCategoryDescription = cat;
+                this.renderCategories();
+            });
+        });
+        list.querySelectorAll('.save-description-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const cat = btn.getAttribute('data-cat');
+                const textarea = list.querySelector(`.category-description-input[data-cat="${cat}"]`);
+                const desc = textarea.value.trim();
+                if (desc) {
+                    this.categoryDescriptions[cat] = desc;
+                } else {
+                    delete this.categoryDescriptions[cat];
+                }
+                this.editingCategoryDescription = null;
+                this.renderCategories();
+            });
+        });
+        list.querySelectorAll('.cancel-description-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.editingCategoryDescription = null;
+                this.renderCategories();
             });
         });
     }
@@ -992,6 +1162,10 @@ Respond with only the category name.`;
         // Remove weight for deleted category
         if (this.categoryWeights && this.categoryWeights[cat]) {
             delete this.categoryWeights[cat];
+        }
+        if (this.categoryColors && this.categoryColors[cat]) {
+            delete this.categoryColors[cat];
+            this.saveCategoryColors();
         }
         this.renderCategories();
         this.renderCategoryWeights();
@@ -1013,7 +1187,8 @@ Respond with only the category name.`;
                 categoryWeights: this.categoryWeights,
                 appOverrides: this.appOverrides,
                 customCategorizationPrompt: this.customCategorizationPrompt,
-                categoryDescriptions: this.categoryDescriptions
+                categoryDescriptions: this.categoryDescriptions,
+                categoryColors: this.categoryColors
             };
 
             await ipcRenderer.invoke('update-settings', settings);
@@ -1031,6 +1206,9 @@ Respond with only the category name.`;
 
             // Update category descriptions
             await ipcRenderer.invoke('update-category-descriptions', this.categoryDescriptions);
+
+            // Update category colors
+            await ipcRenderer.invoke('update-category-colors', this.categoryColors);
 
             // Show success message
             this.showNotification('Settings saved successfully!', 'success');
@@ -1192,6 +1370,25 @@ Respond with only the category name.`;
         }
         this.editingCategoryDescription = null;
         this.renderCategoryDescriptions();
+    }
+
+    saveCategoryColors() {
+        ipcRenderer.invoke('update-category-colors', this.categoryColors);
+    }
+
+    generateDefaultCategoryColors(categories) {
+        const colors = {};
+        categories.forEach((cat, i) => {
+            colors[cat] = this.defaultCategoryColors[i % this.defaultCategoryColors.length];
+        });
+        return colors;
+    }
+
+    addCategoryWithColor(newCat) {
+        // Assign a color to the new category
+        const usedColors = Object.values(this.categoryColors);
+        const available = this.defaultCategoryColors.find(c => !usedColors.includes(c));
+        this.categoryColors[newCat] = available || '#cccccc';
     }
 }
 

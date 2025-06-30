@@ -175,7 +175,8 @@ class TimeTrackerApp {
                 categoryWeights: this.store.get('categoryWeights', {}),
                 categoryDescriptions: this.store.get('categoryDescriptions', {}),
                 appOverrides: this.store.get('appOverrides', {}),
-                customCategorizationPrompt: this.store.get('customCategorizationPrompt', '')
+                customCategorizationPrompt: this.store.get('customCategorizationPrompt', ''),
+                categoryColors: this.store.get('categoryColors', {})
             };
         });
 
@@ -246,6 +247,23 @@ class TimeTrackerApp {
                 return { success: true };
             }
             return { success: false };
+        });
+
+        // Bulk update activity categories
+        ipcMain.handle('bulk-update-activity-category', async (event, { ids, category }) => {
+            if (this.databaseManager && Array.isArray(ids) && category) {
+                for (const id of ids) {
+                    await this.databaseManager.updateActivityCategory(id, category);
+                }
+                return { success: true };
+            }
+            return { success: false };
+        });
+
+        // Update category colors
+        ipcMain.handle('update-category-colors', (event, categoryColors) => {
+            this.store.set('categoryColors', categoryColors);
+            return { success: true };
         });
     }
 
