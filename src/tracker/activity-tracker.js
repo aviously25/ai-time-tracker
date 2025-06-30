@@ -258,11 +258,6 @@ class ActivityTracker {
             // Save to database
             await this.databaseManager.saveActivity(activity);
 
-            // Get AI insights if enabled
-            if (this.aiAnalyzer && this.aiAnalyzer.isEnabled()) {
-                this.aiAnalyzer.analyzeActivity(activity);
-            }
-
         } catch (error) {
             console.error('Error saving activity:', error);
         }

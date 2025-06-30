@@ -1,6 +1,6 @@
 # AI Time Tracker
 
-A powerful, AI-powered time tracking application that automatically monitors your computer usage and provides intelligent insights to improve productivity.
+A powerful, AI-powered time tracking application that automatically monitors your computer usage and provides productivity analytics.
 
 ## Features
 
@@ -16,13 +16,7 @@ A powerful, AI-powered time tracking application that automatically monitors you
 - Top applications and websites tracking
 - Daily, weekly, and monthly activity views
 
-### 🤖 **AI-Powered Insights**
-- TogetherAI integration for intelligent productivity analysis
-- Personalized recommendations and tips
-- Activity categorization and scoring
-- Productivity trend analysis
-
-### 🔧 **Customizable Settings**
+### 🛠️ **Customizable Settings**
 - Adjustable tracking intervals
 - Auto-start on system boot
 - Privacy-focused local data storage
@@ -34,7 +28,6 @@ The application features a modern, clean interface with:
 - Gradient sidebar navigation
 - Real-time activity monitoring
 - Interactive charts and statistics
-- AI-powered insights panel
 - Comprehensive settings management
 
 ## Installation
@@ -81,12 +74,11 @@ npm run dist
 
 ### TogetherAI API Setup (Optional)
 
-For AI-powered insights, you'll need a TogetherAI API key:
+For AI-powered categorization, you'll need a TogetherAI API key:
 
 1. Get an API key from [TogetherAI](https://together.ai/)
 2. Open the application settings
 3. Enter your API key in the "TogetherAI API Key" field
-4. Enable "AI insights" in settings
 
 ### Privacy & Data Storage
 
@@ -109,7 +101,6 @@ For AI-powered insights, you'll need a TogetherAI API key:
 3. **View your data**
    - Dashboard: Overview of your productivity metrics
    - Activities: Detailed list of all tracked activities
-   - AI Insights: Intelligent analysis and recommendations
    - Settings: Configure tracking preferences
 
 ### Understanding Your Data

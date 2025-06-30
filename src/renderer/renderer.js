@@ -72,11 +72,6 @@ class TimeTrackerUI {
             this.clearData();
         });
 
-        // Insights refresh
-        document.getElementById('refreshInsights').addEventListener('click', () => {
-            this.refreshInsights();
-        });
-
         // Activity filters
         document.getElementById('activitySearch').addEventListener('input', (e) => {
             this.filterActivities();
@@ -151,7 +146,6 @@ class TimeTrackerUI {
         const titles = {
             dashboard: 'Dashboard',
             activities: 'Activities',
-            insights: 'AI Insights',
             settings: 'Settings'
         };
         document.getElementById('pageTitle').textContent = titles[section];
@@ -159,14 +153,6 @@ class TimeTrackerUI {
         // Load section-specific data
         if (section === 'activities') {
             this.loadActivities();
-        } else if (section === 'insights') {
-            // Only load insights if we don't have cached data for current date range
-            if (!this.cachedInsights || this.lastInsightsDateRange !== this.currentDateRange) {
-                this.loadInsights();
-            } else {
-                // Use cached insights
-                this.renderInsights(this.cachedInsights);
-            }
         } else if (section === 'settings') {
             this.loadSettings();
         }
@@ -632,57 +618,6 @@ class TimeTrackerUI {
 
             item.style.display = matchesSearch && matchesCategory ? 'flex' : 'none';
         });
-    }
-
-    async loadInsights() {
-        try {
-            // Check if we have cached insights for the current date range
-            if (this.cachedInsights && this.lastInsightsDateRange === this.currentDateRange) {
-                this.renderInsights(this.cachedInsights);
-                return;
-            }
-
-            const insights = await ipcRenderer.invoke('get-ai-insights', this.currentDateRange);
-            this.cachedInsights = insights;
-            this.lastInsightsDateRange = this.currentDateRange;
-            this.renderInsights(insights);
-        } catch (error) {
-            console.error('Error loading insights:', error);
-        }
-    }
-
-    renderInsights(insights) {
-        const insightText = document.getElementById('insightText');
-        const insightTimestamp = document.getElementById('insightTimestamp');
-
-        // Render markdown content using the global marked object
-        if (insights.insights) {
-            insightText.innerHTML = window.marked.parse(insights.insights);
-        } else {
-            insightText.textContent = 'No insights available';
-        }
-
-        insightTimestamp.textContent = insights.generated ?
-            `Generated: ${new Date(insights.generated).toLocaleString()}` :
-            'Not available';
-    }
-
-    async refreshInsights() {
-        const button = document.getElementById('refreshInsights');
-        const icon = button.querySelector('i');
-
-        icon.className = 'fas fa-spinner fa-spin';
-        button.disabled = true;
-
-        try {
-            // Clear cache to force fresh fetch
-            this.cachedInsights = null;
-            this.lastInsightsDateRange = null;
-            await this.loadInsights();
-        } finally {
-            icon.className = 'fas fa-sync-alt';
-            button.disabled = false;
-        }
     }
 
     async loadSettings() {

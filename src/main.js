@@ -138,13 +138,6 @@ class TimeTrackerApp {
             return await this.databaseManager.getStatistics(dateRange);
         });
 
-        // Get AI insights
-        ipcMain.handle('get-ai-insights', async (event, dateRange) => {
-            // Get activity data for the date range to provide personalized insights
-            const activities = await this.databaseManager.getActivityData(dateRange);
-            return await this.aiAnalyzer.getInsights(dateRange, activities);
-        });
-
         // Start/stop tracking
         ipcMain.handle('start-tracking', () => {
             this.activityTracker.startTracking();

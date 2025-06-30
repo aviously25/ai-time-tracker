@@ -92,41 +92,6 @@ class AIAnalyzer {
         }
     }
 
-    async getInsights(dateRange = 'today', activities = []) {
-        if (!this.isEnabled() || !this.together) {
-            return this.getDefaultInsights();
-        }
-
-        try {
-            const messages = [
-                {
-                    role: 'system',
-                    content: 'You are an AI productivity coach that analyzes time tracking data and provides actionable insights to improve productivity and work-life balance. Use markdown formatting for better readability.'
-                },
-                {
-                    role: 'user',
-                    content: this.buildInsightsPrompt(dateRange, activities)
-                }
-            ];
-
-            const response = await this.together.chat.completions.create({
-                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-                messages: messages,
-                max_tokens: 400,
-                temperature: 0.7,
-                top_p: 0.9
-            });
-
-            return {
-                insights: response.choices[0].message.content.trim(),
-                generated: new Date().toISOString()
-            };
-        } catch (error) {
-            console.error('Error getting TogetherAI insights:', error);
-            return this.getDefaultInsights();
-        }
-    }
-
     buildActivityPrompt(activity) {
         const duration = Math.floor(activity.duration / 60); // Convert to minutes
         const timeString = new Date(activity.timestamp).toLocaleTimeString();
@@ -146,65 +111,6 @@ Please provide a brief, actionable insight about this activity. Consider:
 4. Positive reinforcement if it's good behavior
 
 Keep the response under 100 words and be encouraging.`;
-    }
-
-    buildInsightsPrompt(dateRange, activities) {
-        if (!activities || activities.length === 0) {
-            return `Daily Productivity Analysis Request:
-- Date Range: ${dateRange}
-- Context: User is tracking their computer activity to improve productivity
-- Status: No activities recorded for this time period
-
-Please provide a brief analysis including:
-1. Why no activities might be recorded
-2. Suggestions for getting started with time tracking
-3. General productivity tips
-
-Focus on being helpful, encouraging, and practical. Keep it under 150 words.`;
-        }
-
-        const activitySummary = activities.map(a =>
-            `${a.processName} (${a.category}): ${Math.floor(a.duration / 60)}min`
-        ).join('\n');
-
-        const totalMinutes = activities.reduce((sum, a) => sum + Math.floor((a.duration || 0) / 60), 0);
-        const uniqueApps = new Set(activities.map(a => a.processName)).size;
-        const categories = [...new Set(activities.map(a => a.category))];
-
-        return `Daily Productivity Analysis Request:
-- Date Range: ${dateRange}
-- Total Time Tracked: ${totalMinutes} minutes
-- Applications Used: ${uniqueApps}
-- Categories: ${categories.join(', ')}
-- Context: User is tracking their computer activity to improve productivity
-
-Please provide a comprehensive analysis including:
-1. Overall productivity assessment based on the data
-2. Potential time-wasting activities
-3. Suggestions for improvement
-4. Positive patterns to reinforce
-5. Specific actionable recommendations
-
-Focus on being helpful, encouraging, and practical. Keep it under 300 words.
-
-### Activity Summary
-${activitySummary}`;
-    }
-
-    getDefaultInsights() {
-        const insights = [
-            "Great job tracking your time! This is the first step toward better productivity awareness.",
-            "Consider setting specific goals for each work session to maximize your productivity.",
-            "Try using the Pomodoro Technique: 25 minutes of focused work followed by a 5-minute break.",
-            "Review your most productive hours and schedule important tasks during those times.",
-            "Take regular breaks to maintain focus and prevent burnout."
-        ];
-
-        return {
-            insights: insights[Math.floor(Math.random() * insights.length)],
-            generated: new Date().toISOString(),
-            isDefault: true
-        };
     }
 
     async categorizeActivity(activity) {

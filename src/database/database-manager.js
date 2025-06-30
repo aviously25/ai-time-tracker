@@ -45,17 +45,6 @@ class DatabaseManager {
       )
     `;
 
-        const createInsightsTable = `
-      CREATE TABLE IF NOT EXISTS insights (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date DATE NOT NULL,
-        category TEXT NOT NULL,
-        total_time INTEGER DEFAULT 0,
-        insights TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
         const createSettingsTable = `
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
@@ -76,13 +65,6 @@ class DatabaseManager {
                 this.db.run(createAppIconsTable, (err) => {
                     if (err) {
                         console.error('Error creating app_icons table:', err);
-                        reject(err);
-                    }
-                });
-
-                this.db.run(createInsightsTable, (err) => {
-                    if (err) {
-                        console.error('Error creating insights table:', err);
                         reject(err);
                     }
                 });
@@ -330,67 +312,6 @@ class DatabaseManager {
                         resolve(results);
                     }
                 });
-            });
-        });
-    }
-
-    async saveInsight(date, category, totalTime, insights) {
-        const query = `
-      INSERT OR REPLACE INTO insights (date, category, total_time, insights)
-      VALUES (?, ?, ?, ?)
-    `;
-
-        return new Promise((resolve, reject) => {
-            this.db.run(query, [format(date, 'yyyy-MM-dd'), category, totalTime, insights], function (err) {
-                if (err) {
-                    console.error('Error saving insight:', err);
-                    reject(err);
-                } else {
-                    resolve(this.lastID);
-                }
-            });
-        });
-    }
-
-    async getInsights(dateRange = 'today') {
-        let startDate, endDate;
-
-        switch (dateRange) {
-            case 'today':
-                startDate = startOfDay(new Date());
-                endDate = endOfDay(new Date());
-                break;
-            case 'yesterday':
-                startDate = startOfDay(subDays(new Date(), 1));
-                endDate = endOfDay(subDays(new Date(), 1));
-                break;
-            case 'week':
-                startDate = startOfDay(subDays(new Date(), 7));
-                endDate = endOfDay(new Date());
-                break;
-            case 'month':
-                startDate = startOfDay(subDays(new Date(), 30));
-                endDate = endOfDay(new Date());
-                break;
-            default:
-                startDate = startOfDay(new Date());
-                endDate = endOfDay(new Date());
-        }
-
-        const query = `
-      SELECT * FROM insights 
-      WHERE date BETWEEN ? AND ?
-      ORDER BY date DESC
-    `;
-
-        return new Promise((resolve, reject) => {
-            this.db.all(query, [format(startDate, 'yyyy-MM-dd'), format(endDate, 'yyyy-MM-dd')], (err, rows) => {
-                if (err) {
-                    console.error('Error getting insights:', err);
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
             });
         });
     }

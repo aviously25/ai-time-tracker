@@ -30,10 +30,6 @@
                     <i class="fas fa-list"></i>
                     <span>Activities</span>
                 </a>
-                <a href="#insights" class="nav-item" data-section="insights">
-                    <i class="fas fa-lightbulb"></i>
-                    <span>AI Insights</span>
-                </a>
                 <a href="#settings" class="nav-item" data-section="settings">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
@@ -183,53 +179,6 @@
                 </div>
             </section>
 
-            <!-- Insights Section -->
-            <section id="insights" class="content-section">
-                <div class="insights-header">
-                    <h2>AI Insights</h2>
-                    <button class="refresh-insights" id="refreshInsights">
-                        <i class="fas fa-sync-alt"></i>
-                        Refresh
-                    </button>
-                </div>
-
-                <div class="insights-content">
-                    <div class="insight-card" id="aiInsight">
-                        <div class="insight-header">
-                            <i class="fas fa-robot"></i>
-                            <h3>Productivity Analysis</h3>
-                        </div>
-                        <div class="insight-body">
-                            <p id="insightText">Start tracking your time to receive personalized AI insights about your
-                                productivity patterns.</p>
-                        </div>
-                        <div class="insight-footer">
-                            <small id="insightTimestamp">Not available</small>
-                        </div>
-                    </div>
-
-                    <div class="insights-grid">
-                        <div class="insight-tip">
-                            <i class="fas fa-lightbulb"></i>
-                            <h4>Pro Tip</h4>
-                            <p>Use the Pomodoro Technique: 25 minutes of focused work followed by a 5-minute break.</p>
-                        </div>
-
-                        <div class="insight-tip">
-                            <i class="fas fa-chart-line"></i>
-                            <h4>Track Progress</h4>
-                            <p>Review your productivity patterns weekly to identify your most effective work hours.</p>
-                        </div>
-
-                        <div class="insight-tip">
-                            <i class="fas fa-bell"></i>
-                            <h4>Set Goals</h4>
-                            <p>Define specific productivity goals for each day to stay focused and motivated.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <!-- Settings Section -->
             <section id="settings" class="content-section">
                 <div class="settings-header">
@@ -273,14 +222,6 @@
                             <input type="text" id="newCategoryInput" placeholder="Add new category...">
                             <button class="btn-primary" id="addCategoryBtn">Add</button>
                         </div>
-                    </div>
-
-                    <div class="settings-group">
-                        <h3>Category Descriptions</h3>
-                        <p class="setting-description">Add descriptions to help the AI better understand what each
-                            category means. These descriptions will be included in the AI prompt for more accurate
-                            categorization.</p>
-                        <div id="categoryDescriptionsList" class="category-descriptions-list"></div>
                     </div>
 
                     <div class="settings-group">
