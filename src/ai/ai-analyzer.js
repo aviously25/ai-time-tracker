@@ -12,6 +12,7 @@ class AIAnalyzer {
         this.aiEnabled = this.store.get('aiEnabled', true);
         this.apiKey = this.store.get('togetherApiKey', '');
         this.categories = this.store.get('categories', DEFAULT_CATEGORIES);
+        this.categoryDescriptions = this.store.get('categoryDescriptions', {});
         this.appOverrides = this.store.get('appOverrides', {});
         this.customCategorizationPrompt = this.store.get('customCategorizationPrompt', '');
 
@@ -52,6 +53,11 @@ class AIAnalyzer {
     setCustomCategorizationPrompt(prompt) {
         this.customCategorizationPrompt = prompt || '';
         this.store.set('customCategorizationPrompt', this.customCategorizationPrompt);
+    }
+
+    setCategoryDescriptions(descriptions) {
+        this.categoryDescriptions = descriptions || {};
+        this.store.set('categoryDescriptions', this.categoryDescriptions);
     }
 
     async analyzeActivity(activity) {
@@ -216,16 +222,22 @@ ${activitySummary}`;
             // Use only categories from settings
             const categoriesList = this.categories && this.categories.length > 0 ? this.categories : DEFAULT_CATEGORIES;
 
+            // Build categories list with descriptions if available
+            const categoriesWithDescriptions = categoriesList.map(cat => {
+                const description = this.categoryDescriptions[cat];
+                return description ? `- ${cat}: ${description}` : `- ${cat}`;
+            }).join('\n');
+
             // Use custom prompt if available, otherwise use default
             let prompt;
             if (this.customCategorizationPrompt && this.customCategorizationPrompt.trim()) {
                 prompt = this.customCategorizationPrompt
-                    .replace('{categories}', categoriesList.map(cat => `- ${cat}`).join('\n'))
+                    .replace('{categories}', categoriesWithDescriptions)
                     .replace('{appName}', activity.processName)
                     .replace('{windowTitle}', activity.windowTitle)
                     .replace('{currentCategory}', activity.category);
             } else {
-                prompt = `Categorize this activity into one of these categories:\n${categoriesList.map(cat => `- ${cat}`).join('\n')}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`;
+                prompt = `Categorize this activity into one of these categories:\n${categoriesWithDescriptions}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`;
             }
 
             const messages = [

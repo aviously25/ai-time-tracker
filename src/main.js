@@ -180,6 +180,7 @@ class TimeTrackerApp {
                     'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
                 ]),
                 categoryWeights: this.store.get('categoryWeights', {}),
+                categoryDescriptions: this.store.get('categoryDescriptions', {}),
                 appOverrides: this.store.get('appOverrides', {}),
                 customCategorizationPrompt: this.store.get('customCategorizationPrompt', '')
             };
@@ -205,6 +206,14 @@ class TimeTrackerApp {
         ipcMain.handle('update-custom-prompt', (event, prompt) => {
             if (this.aiAnalyzer) {
                 this.aiAnalyzer.setCustomCategorizationPrompt(prompt);
+            }
+            return { success: true };
+        });
+
+        // Update category descriptions
+        ipcMain.handle('update-category-descriptions', (event, descriptions) => {
+            if (this.aiAnalyzer) {
+                this.aiAnalyzer.setCategoryDescriptions(descriptions);
             }
             return { success: true };
         });

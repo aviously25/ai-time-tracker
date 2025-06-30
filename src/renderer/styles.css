@@ -1156,3 +1156,90 @@ body {
         margin-bottom: 8px;
     }
 }
+
+/* Category Descriptions Styles */
+.category-descriptions-list {
+    margin-bottom: 12px;
+}
+
+.category-description-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+}
+
+.category-description-info {
+    flex: 1;
+    margin-right: 12px;
+}
+
+.category-description-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.category-description-text {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.category-description-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 4px;
+    resize: vertical;
+    min-height: 60px;
+}
+
+.category-description-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.category-description-actions button {
+    padding: 4px 8px;
+    font-size: 11px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.save-description-btn {
+    background: #10b981;
+    color: white;
+}
+
+.save-description-btn:hover {
+    background: #059669;
+}
+
+.edit-description-btn {
+    background: #667eea;
+    color: white;
+}
+
+.edit-description-btn:hover {
+    background: #5a67d8;
+}
+
+.cancel-description-btn {
+    background: #6b7280;
+    color: white;
+}
+
+.cancel-description-btn:hover {
+    background: #4b5563;
+}

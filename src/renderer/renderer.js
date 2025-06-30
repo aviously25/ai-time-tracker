@@ -14,6 +14,8 @@ class TimeTrackerUI {
         this.lastInsightsDateRange = null;
         this.appOverrides = {};
         this.customCategorizationPrompt = '';
+        this.categoryDescriptions = {};
+        this.editingCategoryDescription = null;
 
         this.init();
     }
@@ -683,9 +685,13 @@ class TimeTrackerUI {
             // Load custom prompt
             this.customCategorizationPrompt = settings.customCategorizationPrompt || this.getDefaultCategorizationPrompt();
 
+            // Load category descriptions
+            this.categoryDescriptions = settings.categoryDescriptions || {};
+
             this.renderCategories();
             this.renderCategoryWeights();
             this.renderAppOverrides();
+            this.renderCategoryDescriptions();
             this.updateCategoryFilterDropdown();
             this.updateAppOverrideCategoryDropdown();
             this.updateCustomPromptField();
@@ -813,15 +819,7 @@ class TimeTrackerUI {
 Activity: {appName} - {windowTitle}
 Current category: {currentCategory}
 
-Consider the following when categorizing:
-- Development tools: code editors, terminals, IDEs, git clients
-- Productivity: browsers, office apps, project management tools
-- Communication: chat apps, email clients, video conferencing
-- Social media: social networking, content sharing platforms
-- Entertainment: games, media players, streaming services
-- News: news websites, RSS readers, information sources
-- Shopping: e-commerce, online stores, payment platforms
-- System: system utilities, file managers, settings apps
+Consider the category descriptions above when categorizing. If a category has a description, use it to guide your decision.
 
 Respond with only the category name.`;
     }
@@ -889,7 +887,8 @@ Respond with only the category name.`;
                 categories: this.categories,
                 categoryWeights: this.categoryWeights,
                 appOverrides: this.appOverrides,
-                customCategorizationPrompt: this.customCategorizationPrompt
+                customCategorizationPrompt: this.customCategorizationPrompt,
+                categoryDescriptions: this.categoryDescriptions
             };
 
             await ipcRenderer.invoke('update-settings', settings);
@@ -904,6 +903,9 @@ Respond with only the category name.`;
 
             // Update custom prompt
             await ipcRenderer.invoke('update-custom-prompt', this.customCategorizationPrompt);
+
+            // Update category descriptions
+            await ipcRenderer.invoke('update-category-descriptions', this.categoryDescriptions);
 
             // Show success message
             this.showNotification('Settings saved successfully!', 'success');
@@ -987,6 +989,84 @@ Respond with only the category name.`;
                 }
             }, 300);
         }, 3000);
+    }
+
+    renderCategoryDescriptions() {
+        const container = document.getElementById('categoryDescriptionsList');
+        if (!container) return;
+
+        if (!this.categories || this.categories.length === 0) {
+            container.innerHTML = '<div style="color:#6b7280;">No categories defined.</div>';
+            return;
+        }
+
+        container.innerHTML = this.categories.map(cat => {
+            const description = this.categoryDescriptions[cat] || '';
+            const isEditing = this.editingCategoryDescription === cat;
+
+            return `
+                <div class="category-description-item">
+                    <div class="category-description-info">
+                        <div class="category-description-name">${cat.replace('_', ' ')}</div>
+                        ${isEditing ?
+                    `<textarea class="category-description-input" placeholder="Enter description for ${cat.replace('_', ' ')}...">${description}</textarea>
+                             <div class="category-description-actions">
+                                 <button class="save-description-btn" data-category="${cat}">Save</button>
+                                 <button class="cancel-description-btn" data-category="${cat}">Cancel</button>
+                             </div>` :
+                    `<div class="category-description-text">${description || 'No description set'}</div>
+                             <div class="category-description-actions">
+                                 <button class="edit-description-btn" data-category="${cat}">Edit</button>
+                             </div>`
+                }
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach event listeners
+        container.querySelectorAll('.save-description-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const category = e.target.getAttribute('data-category');
+                const textarea = e.target.closest('.category-description-item').querySelector('.category-description-input');
+                const description = textarea.value.trim();
+                this.saveCategoryDescription(category, description);
+            });
+        });
+
+        container.querySelectorAll('.edit-description-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const category = e.target.getAttribute('data-category');
+                this.startEditingCategoryDescription(category);
+            });
+        });
+
+        container.querySelectorAll('.cancel-description-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const category = e.target.getAttribute('data-category');
+                this.cancelEditingCategoryDescription(category);
+            });
+        });
+    }
+
+    startEditingCategoryDescription(category) {
+        this.editingCategoryDescription = category;
+        this.renderCategoryDescriptions();
+    }
+
+    cancelEditingCategoryDescription(category) {
+        this.editingCategoryDescription = null;
+        this.renderCategoryDescriptions();
+    }
+
+    saveCategoryDescription(category, description) {
+        if (description) {
+            this.categoryDescriptions[category] = description;
+        } else {
+            delete this.categoryDescriptions[category];
+        }
+        this.editingCategoryDescription = null;
+        this.renderCategoryDescriptions();
     }
 }
 
