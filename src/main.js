@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, powerMonitor } = require('electron');
 const path = require('path');
 const { ActivityTracker } = require('./tracker/activity-tracker');
 const { DatabaseManager } = require('./database/database-manager');
@@ -13,6 +13,7 @@ class TimeTrackerApp {
         this.databaseManager = null;
         this.aiAnalyzer = null;
         this.store = new Store();
+        this.isSystemSleeping = false;
 
         this.init();
     }
@@ -23,6 +24,7 @@ class TimeTrackerApp {
             this.setupTray();
             this.initializeServices();
             this.setupIPC();
+            this.setupPowerMonitoring();
         });
 
         app.on('window-all-closed', () => {
@@ -138,7 +140,9 @@ class TimeTrackerApp {
 
         // Get AI insights
         ipcMain.handle('get-ai-insights', async (event, dateRange) => {
-            return await this.aiAnalyzer.getInsights(dateRange);
+            // Get activity data for the date range to provide personalized insights
+            const activities = await this.databaseManager.getActivityData(dateRange);
+            return await this.aiAnalyzer.getInsights(dateRange, activities);
         });
 
         // Start/stop tracking
@@ -154,7 +158,7 @@ class TimeTrackerApp {
 
         // Get tracking status
         ipcMain.handle('get-tracking-status', () => {
-            return { isTracking: this.activityTracker.isTracking };
+            return this.activityTracker.getTrackingStatus();
         });
 
         // Update settings
@@ -193,6 +197,44 @@ class TimeTrackerApp {
                 return { success: true };
             }
             return { success: false };
+        });
+    }
+
+    setupPowerMonitoring() {
+        // Monitor system sleep/wake events
+        powerMonitor.on('suspend', () => {
+            console.log('System going to sleep');
+            this.isSystemSleeping = true;
+
+            // Stop tracking and save current activity before sleep
+            if (this.activityTracker && this.activityTracker.isTracking) {
+                this.activityTracker.handleSystemSleep();
+            }
+        });
+
+        powerMonitor.on('resume', () => {
+            console.log('System waking from sleep');
+            this.isSystemSleeping = false;
+
+            // Resume tracking after wake
+            if (this.activityTracker && this.activityTracker.isTracking) {
+                this.activityTracker.handleSystemWake();
+            }
+        });
+
+        // Monitor lock/unlock events (additional sleep detection)
+        powerMonitor.on('lock-screen', () => {
+            console.log('Screen locked');
+            if (this.activityTracker && this.activityTracker.isTracking) {
+                this.activityTracker.handleSystemSleep();
+            }
+        });
+
+        powerMonitor.on('unlock-screen', () => {
+            console.log('Screen unlocked');
+            if (this.activityTracker && this.activityTracker.isTracking) {
+                this.activityTracker.handleSystemWake();
+            }
         });
     }
 }

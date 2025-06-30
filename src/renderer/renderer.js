@@ -6,9 +6,12 @@ class TimeTrackerUI {
         this.currentDateRange = 'today';
         this.charts = {};
         this.isTracking = false;
+        this.isSystemSleeping = false;
         this.categories = [
             'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
         ];
+        this.cachedInsights = null;
+        this.lastInsightsDateRange = null;
 
         this.init();
     }
@@ -23,7 +26,10 @@ class TimeTrackerUI {
         setInterval(() => this.updateCurrentTime(), 1000);
 
         // Refresh data every 30 seconds
-        setInterval(() => this.refreshData(), 30000);
+        setInterval(() => {
+            this.refreshData();
+            this.loadTrackingStatus(); // Also refresh tracking status
+        }, 30000);
     }
 
     setupEventListeners() {
@@ -38,6 +44,9 @@ class TimeTrackerUI {
         // Date range selector
         document.getElementById('dateRange').addEventListener('change', (e) => {
             this.currentDateRange = e.target.value;
+            // Clear insights cache when date range changes
+            this.cachedInsights = null;
+            this.lastInsightsDateRange = null;
             this.refreshData();
         });
 
@@ -114,7 +123,13 @@ class TimeTrackerUI {
         if (section === 'activities') {
             this.loadActivities();
         } else if (section === 'insights') {
-            this.loadInsights();
+            // Only load insights if we don't have cached data for current date range
+            if (!this.cachedInsights || this.lastInsightsDateRange !== this.currentDateRange) {
+                this.loadInsights();
+            } else {
+                // Use cached insights
+                this.renderInsights(this.cachedInsights);
+            }
         } else if (section === 'settings') {
             this.loadSettings();
         }
@@ -135,30 +150,40 @@ class TimeTrackerUI {
     async loadTrackingStatus() {
         try {
             const status = await ipcRenderer.invoke('get-tracking-status');
-            this.updateTrackingUI(status.isTracking);
+            this.updateTrackingUI(status.isTracking, status.isSystemSleeping);
         } catch (error) {
             console.error('Error loading tracking status:', error);
         }
     }
 
-    updateTrackingUI(isTracking) {
+    updateTrackingUI(isTracking, isSystemSleeping = false) {
         this.isTracking = isTracking;
+        this.isSystemSleeping = isSystemSleeping;
         const indicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const toggleBtn = document.getElementById('trackingToggle');
         const toggleIcon = toggleBtn.querySelector('i');
         const toggleText = toggleBtn.querySelector('span');
 
-        if (isTracking) {
+        if (isSystemSleeping) {
+            indicator.classList.add('sleeping');
+            statusText.textContent = 'System Sleeping';
+            toggleBtn.classList.remove('tracking');
+            toggleBtn.classList.add('sleeping');
+            toggleIcon.className = 'fas fa-moon';
+            toggleText.textContent = 'Sleeping';
+        } else if (isTracking) {
+            indicator.classList.remove('sleeping');
             indicator.classList.add('tracking');
             statusText.textContent = 'Tracking';
+            toggleBtn.classList.remove('sleeping');
             toggleBtn.classList.add('tracking');
             toggleIcon.className = 'fas fa-pause';
             toggleText.textContent = 'Stop Tracking';
         } else {
-            indicator.classList.remove('tracking');
+            indicator.classList.remove('tracking', 'sleeping');
             statusText.textContent = 'Not Tracking';
-            toggleBtn.classList.remove('tracking');
+            toggleBtn.classList.remove('tracking', 'sleeping');
             toggleIcon.className = 'fas fa-play';
             toggleText.textContent = 'Start Tracking';
         }
@@ -166,6 +191,12 @@ class TimeTrackerUI {
 
     async toggleTracking() {
         try {
+            // Don't allow toggling when system is sleeping
+            if (this.isSystemSleeping) {
+                this.showNotification('Cannot toggle tracking while system is sleeping', 'info');
+                return;
+            }
+
             if (this.isTracking) {
                 await ipcRenderer.invoke('stop-tracking');
             } else {
@@ -180,7 +211,6 @@ class TimeTrackerUI {
     async refreshData() {
         await this.loadDashboardData();
         await this.loadActivities();
-        await this.loadInsights();
     }
 
     async loadDashboardData() {
@@ -549,7 +579,15 @@ class TimeTrackerUI {
 
     async loadInsights() {
         try {
+            // Check if we have cached insights for the current date range
+            if (this.cachedInsights && this.lastInsightsDateRange === this.currentDateRange) {
+                this.renderInsights(this.cachedInsights);
+                return;
+            }
+
             const insights = await ipcRenderer.invoke('get-ai-insights', this.currentDateRange);
+            this.cachedInsights = insights;
+            this.lastInsightsDateRange = this.currentDateRange;
             this.renderInsights(insights);
         } catch (error) {
             console.error('Error loading insights:', error);
@@ -560,7 +598,13 @@ class TimeTrackerUI {
         const insightText = document.getElementById('insightText');
         const insightTimestamp = document.getElementById('insightTimestamp');
 
-        insightText.textContent = insights.insights;
+        // Render markdown content using the global marked object
+        if (insights.insights) {
+            insightText.innerHTML = window.marked.parse(insights.insights);
+        } else {
+            insightText.textContent = 'No insights available';
+        }
+
         insightTimestamp.textContent = insights.generated ?
             `Generated: ${new Date(insights.generated).toLocaleString()}` :
             'Not available';
@@ -574,6 +618,9 @@ class TimeTrackerUI {
         button.disabled = true;
 
         try {
+            // Clear cache to force fresh fetch
+            this.cachedInsights = null;
+            this.lastInsightsDateRange = null;
             await this.loadInsights();
         } finally {
             icon.className = 'fas fa-sync-alt';

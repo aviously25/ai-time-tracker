@@ -10,6 +10,9 @@ class ActivityTracker {
         this.trackingInterval = null;
         this.currentActivity = null;
         this.lastActivityTime = null;
+        this.ignoredApps = ["loginwindow"];
+        this.isSystemSleeping = false;
+        this.sleepStartTime = null;
     }
 
     startTracking() {
@@ -45,8 +48,8 @@ class ActivityTracker {
             this.trackingInterval = null;
         }
 
-        // Save the last activity before stopping
-        if (this.currentActivity) {
+        // Save the last activity before stopping (only if not sleeping)
+        if (this.currentActivity && !this.isSystemSleeping) {
             this.saveActivity(this.currentActivity);
         }
 
@@ -55,9 +58,14 @@ class ActivityTracker {
 
     async trackCurrentActivity() {
         try {
+            // Don't track if system is sleeping
+            if (this.isSystemSleeping) {
+                return;
+            }
+
             const activeWindow = await activeWin();
 
-            if (!activeWindow) {
+            if (!activeWindow || this.ignoredApps.includes(activeWindow.processName)) {
                 console.log('No active window detected');
                 return;
             }
@@ -217,9 +225,14 @@ class ActivityTracker {
 
     async saveActivity(activity) {
         try {
-            // Calculate duration
-            if (this.lastActivityTime) {
+            // Calculate duration if not already set
+            if (!activity.duration && this.lastActivityTime) {
                 activity.duration = Math.floor((new Date() - this.lastActivityTime) / 1000);
+            }
+
+            // Don't save activities with zero or negative duration
+            if (!activity.duration || activity.duration <= 0) {
+                return;
             }
 
             // Save to database
@@ -243,8 +256,45 @@ class ActivityTracker {
         return {
             isTracking: this.isTracking,
             currentActivity: this.currentActivity,
-            lastActivityTime: this.lastActivityTime
+            lastActivityTime: this.lastActivityTime,
+            isSystemSleeping: this.isSystemSleeping
         };
+    }
+
+    handleSystemSleep() {
+        this.isSystemSleeping = true;
+        this.sleepStartTime = new Date();
+
+        // Save current activity before sleep
+        if (this.currentActivity && this.lastActivityTime) {
+            // Calculate duration up to sleep time
+            const sleepDuration = Math.floor((this.sleepStartTime - this.lastActivityTime) / 1000);
+            const activityToSave = { ...this.currentActivity };
+            activityToSave.duration = sleepDuration;
+
+            // Save the activity with the correct duration
+            this.saveActivity(activityToSave);
+
+            // Clear current activity since we're sleeping
+            this.currentActivity = null;
+            this.lastActivityTime = null;
+        }
+
+        console.log('Activity tracking paused due to system sleep');
+    }
+
+    handleSystemWake() {
+        this.isSystemSleeping = false;
+        this.sleepStartTime = null;
+
+        // Reset tracking state for new session
+        this.currentActivity = null;
+        this.lastActivityTime = null;
+
+        // Start tracking again immediately
+        this.trackCurrentActivity();
+
+        console.log('Activity tracking resumed after system wake');
     }
 }
 
