@@ -169,7 +169,7 @@ Focus on being helpful, encouraging, and practical. Keep it under 200 words.`;
         try {
             // Use only categories from settings
             const categoriesList = this.categories && this.categories.length > 0 ? this.categories : DEFAULT_CATEGORIES;
-            const categoriesText = categoriesList.map(cat => `- ${cat}:`).join(' ');
+            const prompt = `Categorize this activity into one of these categories:\n${categoriesList.map(cat => `- ${cat}`).join('\n')}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`;
             const messages = [
                 {
                     role: 'system',
@@ -177,7 +177,7 @@ Focus on being helpful, encouraging, and practical. Keep it under 200 words.`;
                 },
                 {
                     role: 'user',
-                    content: `Categorize this activity into one of these categories:\n${categoriesList.map(cat => `- ${cat}`).join('\n')}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`
+                    content: prompt
                 }
             ];
 
