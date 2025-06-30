@@ -1,0 +1,7 @@
+This directory should contain the following icon files:
+
+1. icon.png - Main application icon (512x512 recommended)
+2. tray-icon.png - System tray icon (32x32 recommended)
+
+You can create these icons using any image editor or icon generator.
+For now, the application will use default system icons. 

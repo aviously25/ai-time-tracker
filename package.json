@@ -1,0 +1,56 @@
+{
+    "name": "ai-time-tracker",
+    "version": "1.0.0",
+    "description": "AI-powered time tracking application that monitors websites and applications",
+    "main": "src/main.js",
+    "scripts": {
+        "start": "electron .",
+        "dev": "electron . --dev",
+        "build": "electron-builder",
+        "pack": "electron-builder --dir",
+        "dist": "electron-builder"
+    },
+    "keywords": [
+        "time-tracker",
+        "productivity",
+        "ai",
+        "analytics"
+    ],
+    "author": "AI Time Tracker",
+    "license": "MIT",
+    "devDependencies": {
+        "electron": "^28.3.3",
+        "electron-builder": "^24.13.3"
+    },
+    "dependencies": {
+        "active-win": "^8.2.1",
+        "chart.js": "^4.5.0",
+        "chartjs-adapter-date-fns": "^3.0.0",
+        "date-fns": "^2.30.0",
+        "electron-store": "^8.2.0",
+        "node-cron": "^3.0.3",
+        "openai": "^4.104.0",
+        "sqlite3": "^5.1.7",
+        "together-ai": "^0.16.0"
+    },
+    "build": {
+        "appId": "com.aitimetracker.app",
+        "productName": "AI Time Tracker",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "src/**/*",
+            "node_modules/**/*"
+        ],
+        "mac": {
+            "category": "public.app-category.productivity"
+        },
+        "win": {
+            "target": "nsis"
+        },
+        "linux": {
+            "target": "AppImage"
+        }
+    }
+}

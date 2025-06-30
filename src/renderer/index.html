@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Time Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-clock"></i>
+                    <span>AI Time Tracker</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#activities" class="nav-item" data-section="activities">
+                    <i class="fas fa-list"></i>
+                    <span>Activities</span>
+                </a>
+                <a href="#insights" class="nav-item" data-section="insights">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>AI Insights</span>
+                </a>
+                <a href="#settings" class="nav-item" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="tracking-status">
+                    <div class="status-indicator" id="statusIndicator">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                    <span id="statusText">Not Tracking</span>
+                </div>
+                <button class="tracking-toggle" id="trackingToggle">
+                    <i class="fas fa-play"></i>
+                    <span>Start Tracking</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <div class="date-range">
+                        <select id="dateRange">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="current-time" id="currentTime"></div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Total Time</h3>
+                            <p id="totalTime">0h 0m</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Productivity Score</h3>
+                            <p id="productivityScore">--</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Active Sessions</h3>
+                            <p id="activeSessions">0</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-globe"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Websites Visited</h3>
+                            <p id="websitesVisited">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lists-grid">
+                    <div class="list-card">
+                        <h3>Top Applications</h3>
+                        <div class="list-content" id="topApps">
+                            <div class="empty-state">
+                                <i class="fas fa-desktop"></i>
+                                <p>No application data yet</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="list-card">
+                        <h3>Top Websites</h3>
+                        <div class="list-content" id="topWebsites">
+                            <div class="empty-state">
+                                <i class="fas fa-globe"></i>
+                                <p>No website data yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Activities Section -->
+            <section id="activities" class="content-section">
+                <div class="activities-header">
+                    <h2>Recent Activities</h2>
+                    <div class="activities-filters">
+                        <input type="text" id="activitySearch" placeholder="Search activities...">
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
+                            <option value="productivity">Productivity</option>
+                            <option value="development">Development</option>
+                            <option value="communication">Communication</option>
+                            <option value="social_media">Social Media</option>
+                            <option value="entertainment">Entertainment</option>
+                            <option value="news">News</option>
+                            <option value="shopping">Shopping</option>
+                            <option value="system">System</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="activities-list" id="activitiesList">
+                    <div class="empty-state">
+                        <i class="fas fa-list"></i>
+                        <p>No activities recorded yet</p>
+                        <small>Start tracking to see your activities here</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Insights Section -->
+            <section id="insights" class="content-section">
+                <div class="insights-header">
+                    <h2>AI Insights</h2>
+                    <button class="refresh-insights" id="refreshInsights">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+
+                <div class="insights-content">
+                    <div class="insight-card" id="aiInsight">
+                        <div class="insight-header">
+                            <i class="fas fa-robot"></i>
+                            <h3>Productivity Analysis</h3>
+                        </div>
+                        <div class="insight-body">
+                            <p id="insightText">Start tracking your time to receive personalized AI insights about your
+                                productivity patterns.</p>
+                        </div>
+                        <div class="insight-footer">
+                            <small id="insightTimestamp">Not available</small>
+                        </div>
+                    </div>
+
+                    <div class="insights-grid">
+                        <div class="insight-tip">
+                            <i class="fas fa-lightbulb"></i>
+                            <h4>Pro Tip</h4>
+                            <p>Use the Pomodoro Technique: 25 minutes of focused work followed by a 5-minute break.</p>
+                        </div>
+
+                        <div class="insight-tip">
+                            <i class="fas fa-chart-line"></i>
+                            <h4>Track Progress</h4>
+                            <p>Review your productivity patterns weekly to identify your most effective work hours.</p>
+                        </div>
+
+                        <div class="insight-tip">
+                            <i class="fas fa-bell"></i>
+                            <h4>Set Goals</h4>
+                            <p>Define specific productivity goals for each day to stay focused and motivated.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings" class="content-section">
+                <div class="settings-header">
+                    <h2>Settings</h2>
+                </div>
+
+                <div class="settings-content">
+                    <div class="settings-group">
+                        <h3>Tracking Settings</h3>
+
+                        <div class="setting-item">
+                            <label for="autoStart">Auto-start tracking</label>
+                            <input type="checkbox" id="autoStart" checked>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="trackingInterval">Tracking interval (seconds)</label>
+                            <input type="number" id="trackingInterval" value="30" min="10" max="300">
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>AI Settings</h3>
+
+                        <div class="setting-item">
+                            <label for="aiEnabled">Enable AI insights</label>
+                            <input type="checkbox" id="aiEnabled" checked>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="togetherApiKey">TogetherAI API Key</label>
+                            <input type="password" id="togetherApiKey" placeholder="Enter your TogetherAI API key">
+                            <small>Required for AI-powered insights and analysis</small>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button class="btn-primary" id="saveSettings">Save Settings</button>
+                        <button class="btn-secondary" id="exportData">Export Data</button>
+                        <button class="btn-danger" id="clearData">Clear All Data</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="renderer.js"></script>
+</body>
+
+</html>

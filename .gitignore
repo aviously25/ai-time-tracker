@@ -1,0 +1,46 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# SQLite database
+*.db
+*.db-journal
+
+# Electron specific
+*.asar
+
+# VSCode settings
+.vscode/
+
+# Mac system files
+.AppleDouble
+.LSOverride
+
+# Misc
+*.log
+.idea/
+
+# Coverage
+coverage/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache 
