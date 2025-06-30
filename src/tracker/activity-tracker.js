@@ -1,11 +1,13 @@
 const activeWin = require('active-win');
 const cron = require('node-cron');
 const { URL } = require('url');
+const { IconExtractor } = require('../utils/icon-extractor');
 
 class ActivityTracker {
     constructor(databaseManager, aiAnalyzer) {
         this.databaseManager = databaseManager;
         this.aiAnalyzer = aiAnalyzer;
+        this.iconExtractor = new IconExtractor();
         this.isTracking = false;
         this.trackingInterval = null;
         this.currentActivity = null;
@@ -112,6 +114,24 @@ class ActivityTracker {
             } catch (error) {
                 console.log('Invalid URL:', url);
             }
+        }
+
+        // Store app icon in app_icons table if not already present
+        try {
+            const db = this.databaseManager.db;
+            const processNameKey = activity.processName;
+            db.get("SELECT icon_base64 FROM app_icons WHERE process_name = ?", [processNameKey], async (err, row) => {
+                if (!row) {
+                    const iconPath = await this.iconExtractor.getAppIcon(processNameKey);
+                    let iconBase64 = null;
+                    if (iconPath) {
+                        iconBase64 = await this.iconExtractor.getIconAsBase64(iconPath);
+                    }
+                    db.run("INSERT OR IGNORE INTO app_icons (process_name, icon_path, icon_base64) VALUES (?, ?, ?)", [processNameKey, iconPath, iconBase64]);
+                }
+            });
+        } catch (error) {
+            console.log('Error storing app icon:', error.message);
         }
 
         // Use AI to categorize if enabled

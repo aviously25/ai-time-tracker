@@ -100,6 +100,11 @@ class TimeTrackerUI {
             }
         });
 
+        // Refresh activities
+        document.getElementById('refreshActivities').addEventListener('click', () => {
+            this.loadActivities();
+        });
+
         // App overrides
         document.getElementById('addAppOverrideBtn').addEventListener('click', () => {
             const appName = document.getElementById('newAppNameInput').value.trim();
@@ -463,20 +468,29 @@ class TimeTrackerUI {
         // Update top apps
         const topAppsContainer = document.getElementById('topApps');
         if (statistics.topApps && statistics.topApps.length > 0) {
-            topAppsContainer.innerHTML = statistics.topApps.map(app => `
-                <div class="list-item">
-                    <div class="list-item-left">
-                        <div class="list-item-icon">
-                            <i class="fas fa-desktop"></i>
+            topAppsContainer.innerHTML = statistics.topApps.map(app => {
+                // Try to get icon for the app
+                let iconHtml = `<i class="fas fa-desktop"></i>`;
+                const iconBase64 = app.iconBase64 || app.icon_base64;
+                if (iconBase64) {
+                    iconHtml = `<img src="${iconBase64}" alt="${app.process_name}" class="list-app-icon">`;
+                }
+
+                return `
+                    <div class="list-item">
+                        <div class="list-item-left">
+                            <div class="list-item-icon">
+                                ${iconHtml}
+                            </div>
+                            <div class="list-item-info">
+                                <h4>${app.process_name}</h4>
+                                <small>${app.sessions} sessions</small>
+                            </div>
                         </div>
-                        <div class="list-item-info">
-                            <h4>${app.process_name}</h4>
-                            <small>${app.sessions} sessions</small>
-                        </div>
+                        <div class="list-item-time">${this.formatDuration(app.total_time)}</div>
                     </div>
-                    <div class="list-item-time">${this.formatDuration(app.total_time)}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         } else {
             topAppsContainer.innerHTML = `
                 <div class="empty-state">
@@ -536,26 +550,37 @@ class TimeTrackerUI {
             return;
         }
 
-        container.innerHTML = activities.map(activity => `
-            <div class="activity-item" data-activity-id="${activity.id}">
-                <div class="activity-icon">
-                    <i class="fas ${this.getActivityIcon(activity.category)}"></i>
-                </div>
-                <div class="activity-content">
-                    <div class="activity-title">${activity.window_title}</div>
-                    <div class="activity-meta">
-                        <span>${activity.process_name}</span>
-                        <span>${new Date(activity.timestamp).toLocaleTimeString()}</span>
-                        <select class="activity-category-select" data-activity-id="${activity.id}">
-                            ${this.categories.map(cat => `
-                                <option value="${cat}" ${cat === activity.category ? 'selected' : ''}>${cat.replace('_', ' ')}</option>
-                            `).join('')}
-                        </select>
+        container.innerHTML = activities.map(activity => {
+            // Determine icon to display
+            let iconHtml = '';
+            const iconBase64 = activity.iconBase64 || activity.icon_base64;
+            if (iconBase64) {
+                iconHtml = `<img src="${iconBase64}" alt="${activity.processName}" class="activity-app-icon">`;
+            } else {
+                iconHtml = `<i class="fas ${this.getActivityIcon(activity.category)}"></i>`;
+            }
+
+            return `
+                <div class="activity-item" data-activity-id="${activity.id}">
+                    <div class="activity-icon">
+                        ${iconHtml}
                     </div>
+                    <div class="activity-content">
+                        <div class="activity-title">${activity.windowTitle}</div>
+                        <div class="activity-meta">
+                            <span>${activity.processName}</span>
+                            <span>${new Date(activity.timestamp).toLocaleTimeString()}</span>
+                            <select class="activity-category-select" data-activity-id="${activity.id}">
+                                ${this.categories.map(cat => `
+                                    <option value="${cat}" ${cat === activity.category ? 'selected' : ''}>${cat.replace('_', ' ')}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="activity-time">${this.formatDuration(activity.duration)}</div>
                 </div>
-                <div class="activity-time">${this.formatDuration(activity.duration)}</div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         // Attach change handlers for category dropdowns
         container.querySelectorAll('.activity-category-select').forEach(select => {

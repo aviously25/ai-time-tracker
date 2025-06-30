@@ -37,6 +37,14 @@ class DatabaseManager {
       )
     `;
 
+        const createAppIconsTable = `
+      CREATE TABLE IF NOT EXISTS app_icons (
+        process_name TEXT PRIMARY KEY,
+        icon_path TEXT,
+        icon_base64 TEXT
+      )
+    `;
+
         const createInsightsTable = `
       CREATE TABLE IF NOT EXISTS insights (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +73,13 @@ class DatabaseManager {
                     }
                 });
 
+                this.db.run(createAppIconsTable, (err) => {
+                    if (err) {
+                        console.error('Error creating app_icons table:', err);
+                        reject(err);
+                    }
+                });
+
                 this.db.run(createInsightsTable, (err) => {
                     if (err) {
                         console.error('Error creating insights table:', err);
@@ -78,8 +93,63 @@ class DatabaseManager {
                         reject(err);
                     } else {
                         console.log('Database tables created successfully');
-                        resolve();
+                        this.migrateDatabase().then(resolve).catch(reject);
                     }
+                });
+            });
+        });
+    }
+
+    async migrateDatabase() {
+        // Remove icon_path and icon_base64 from activities, migrate to app_icons
+        return new Promise((resolve, reject) => {
+            this.db.all("PRAGMA table_info(activities)", (err, columns) => {
+                if (err) {
+                    console.error('Error getting table info:', err);
+                    reject(err);
+                    return;
+                }
+                const hasIconPath = columns.some(col => col.name === 'icon_path');
+                const hasIconBase64 = columns.some(col => col.name === 'icon_base64');
+                if (hasIconPath || hasIconBase64) {
+                    // Migrate unique icons to app_icons
+                    this.db.all("SELECT DISTINCT process_name, icon_path, icon_base64 FROM activities WHERE icon_base64 IS NOT NULL", (err, rows) => {
+                        if (!err && rows && rows.length > 0) {
+                            rows.forEach(row => {
+                                this.db.run("INSERT OR IGNORE INTO app_icons (process_name, icon_path, icon_base64) VALUES (?, ?, ?)", [row.process_name, row.icon_path, row.icon_base64]);
+                            });
+                        }
+                        // Remove columns from activities (requires table recreation in SQLite)
+                        this._recreateActivitiesTableWithoutIcons().then(resolve).catch(reject);
+                    });
+                } else {
+                    resolve();
+                }
+            });
+        });
+    }
+
+    async _recreateActivitiesTableWithoutIcons() {
+        // SQLite doesn't support DROP COLUMN, so we need to recreate the table
+        return new Promise((resolve, reject) => {
+            this.db.serialize(() => {
+                this.db.run(`ALTER TABLE activities RENAME TO activities_old`);
+                this.db.run(`CREATE TABLE activities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME NOT NULL,
+                    process_name TEXT NOT NULL,
+                    window_title TEXT,
+                    url TEXT,
+                    domain TEXT,
+                    category TEXT NOT NULL,
+                    duration INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )`);
+                this.db.run(`INSERT INTO activities (id, timestamp, process_name, window_title, url, domain, category, duration, created_at)
+                    SELECT id, timestamp, process_name, window_title, url, domain, category, duration, created_at FROM activities_old`);
+                this.db.run(`DROP TABLE activities_old`, (err) => {
+                    if (err) reject(err);
+                    else resolve();
                 });
             });
         });
@@ -137,9 +207,21 @@ class DatabaseManager {
         }
 
         const query = `
-      SELECT * FROM activities 
-      WHERE timestamp BETWEEN ? AND ?
-      ORDER BY timestamp DESC
+      SELECT 
+        a.id,
+        a.timestamp,
+        a.process_name as processName,
+        a.window_title as windowTitle,
+        a.url,
+        a.domain,
+        a.category,
+        a.duration,
+        a.created_at as createdAt,
+        i.icon_base64 as iconBase64
+      FROM activities a
+      LEFT JOIN app_icons i ON a.process_name = i.process_name
+      WHERE a.timestamp BETWEEN ? AND ?
+      ORDER BY a.timestamp DESC
     `;
 
         return new Promise((resolve, reject) => {
@@ -193,12 +275,14 @@ class DatabaseManager {
 
         const topAppsQuery = `
       SELECT 
-        process_name,
+        a.process_name,
         COUNT(*) as sessions,
-        SUM(duration) as total_time
-      FROM activities 
-      WHERE timestamp BETWEEN ? AND ?
-      GROUP BY process_name
+        SUM(a.duration) as total_time,
+        i.icon_base64 as icon_base64
+      FROM activities a
+      LEFT JOIN app_icons i ON a.process_name = i.process_name
+      WHERE a.timestamp BETWEEN ? AND ?
+      GROUP BY a.process_name
       ORDER BY total_time DESC
       LIMIT 10
     `;
