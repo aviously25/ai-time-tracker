@@ -12,6 +12,8 @@ class AIAnalyzer {
         this.aiEnabled = this.store.get('aiEnabled', true);
         this.apiKey = this.store.get('togetherApiKey', '');
         this.categories = this.store.get('categories', DEFAULT_CATEGORIES);
+        this.appOverrides = this.store.get('appOverrides', {});
+        this.customCategorizationPrompt = this.store.get('customCategorizationPrompt', '');
 
         if (this.apiKey) {
             this.together = new Together({
@@ -40,6 +42,16 @@ class AIAnalyzer {
     setCategories(categories) {
         this.categories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
         this.store.set('categories', this.categories);
+    }
+
+    setAppOverrides(overrides) {
+        this.appOverrides = overrides || {};
+        this.store.set('appOverrides', this.appOverrides);
+    }
+
+    setCustomCategorizationPrompt(prompt) {
+        this.customCategorizationPrompt = prompt || '';
+        this.store.set('customCategorizationPrompt', this.customCategorizationPrompt);
     }
 
     async analyzeActivity(activity) {
@@ -190,6 +202,12 @@ ${activitySummary}`;
     }
 
     async categorizeActivity(activity) {
+        // Check app overrides first
+        const appOverride = this.appOverrides[activity.processName];
+        if (appOverride && appOverride.category) {
+            return appOverride.category;
+        }
+
         if (!this.isEnabled() || !this.together) {
             return activity.category;
         }
@@ -197,7 +215,19 @@ ${activitySummary}`;
         try {
             // Use only categories from settings
             const categoriesList = this.categories && this.categories.length > 0 ? this.categories : DEFAULT_CATEGORIES;
-            const prompt = `Categorize this activity into one of these categories:\n${categoriesList.map(cat => `- ${cat}`).join('\n')}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`;
+
+            // Use custom prompt if available, otherwise use default
+            let prompt;
+            if (this.customCategorizationPrompt && this.customCategorizationPrompt.trim()) {
+                prompt = this.customCategorizationPrompt
+                    .replace('{categories}', categoriesList.map(cat => `- ${cat}`).join('\n'))
+                    .replace('{appName}', activity.processName)
+                    .replace('{windowTitle}', activity.windowTitle)
+                    .replace('{currentCategory}', activity.category);
+            } else {
+                prompt = `Categorize this activity into one of these categories:\n${categoriesList.map(cat => `- ${cat}`).join('\n')}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`;
+            }
+
             const messages = [
                 {
                     role: 'system',

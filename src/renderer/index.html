@@ -279,6 +279,33 @@
                         <div id="categoryWeightsList" class="category-weights-list"></div>
                     </div>
 
+                    <div class="settings-group">
+                        <h3>App Overrides</h3>
+                        <p class="setting-description">Override AI categorization for specific applications. Add apps
+                            that the AI might misclassify.</p>
+                        <div id="appOverridesList" class="app-overrides-list"></div>
+                        <div class="add-override-row">
+                            <input type="text" id="newAppNameInput" placeholder="App name (e.g., kitty)">
+                            <select id="newAppCategorySelect">
+                                <option value="">Select category...</option>
+                            </select>
+                            <input type="text" id="newAppDescriptionInput" placeholder="Description (optional)">
+                            <button class="btn-primary" id="addAppOverrideBtn">Add Override</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>Custom AI Prompt</h3>
+                        <p class="setting-description">Customize the AI prompt used for categorizing applications. This
+                            helps the AI better understand your specific apps and workflow.</p>
+                        <textarea id="customCategorizationPrompt" rows="8"
+                            placeholder="Enter your custom categorization prompt..."></textarea>
+                        <div class="prompt-actions">
+                            <button class="btn-secondary" id="resetPromptBtn">Reset to Default</button>
+                            <button class="btn-secondary" id="testPromptBtn">Test Prompt</button>
+                        </div>
+                    </div>
+
                     <div class="settings-actions">
                         <button class="btn-primary" id="saveSettings">Save Settings</button>
                         <button class="btn-secondary" id="exportData">Export Data</button>

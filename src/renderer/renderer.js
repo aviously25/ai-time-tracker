@@ -12,6 +12,8 @@ class TimeTrackerUI {
         ];
         this.cachedInsights = null;
         this.lastInsightsDateRange = null;
+        this.appOverrides = {};
+        this.customCategorizationPrompt = '';
 
         this.init();
     }
@@ -94,6 +96,34 @@ class TimeTrackerUI {
                 this.updateChartColors();
                 input.value = '';
             }
+        });
+
+        // App overrides
+        document.getElementById('addAppOverrideBtn').addEventListener('click', () => {
+            const appName = document.getElementById('newAppNameInput').value.trim();
+            const category = document.getElementById('newAppCategorySelect').value;
+            const description = document.getElementById('newAppDescriptionInput').value.trim();
+
+            if (appName && category) {
+                this.appOverrides[appName] = { category, description };
+                this.renderAppOverrides();
+                this.updateAppOverrideCategoryDropdown();
+
+                // Clear inputs
+                document.getElementById('newAppNameInput').value = '';
+                document.getElementById('newAppCategorySelect').value = '';
+                document.getElementById('newAppDescriptionInput').value = '';
+            }
+        });
+
+        // Custom prompt actions
+        document.getElementById('resetPromptBtn').addEventListener('click', () => {
+            this.customCategorizationPrompt = this.getDefaultCategorizationPrompt();
+            document.getElementById('customCategorizationPrompt').value = this.customCategorizationPrompt;
+        });
+
+        document.getElementById('testPromptBtn').addEventListener('click', () => {
+            this.testCustomPrompt();
         });
     }
 
@@ -265,7 +295,7 @@ class TimeTrackerUI {
 
     getCategoryWeights() {
         // Get weights from settings, or generate defaults if not set
-        if (!this.categoryWeights) {
+        if (!this.categoryWeights || Object.keys(this.categoryWeights).length === 0) {
             this.categoryWeights = this.generateDefaultWeights();
         }
         return this.categoryWeights;
@@ -641,11 +671,24 @@ class TimeTrackerUI {
             ];
 
             // Load category weights from settings
-            this.categoryWeights = settings.categoryWeights || this.generateDefaultWeights();
+            if (settings.categoryWeights && Object.keys(settings.categoryWeights).length > 0) {
+                this.categoryWeights = settings.categoryWeights;
+            } else {
+                this.categoryWeights = this.generateDefaultWeights();
+            }
+
+            // Load app overrides
+            this.appOverrides = settings.appOverrides || {};
+
+            // Load custom prompt
+            this.customCategorizationPrompt = settings.customCategorizationPrompt || this.getDefaultCategorizationPrompt();
 
             this.renderCategories();
             this.renderCategoryWeights();
+            this.renderAppOverrides();
             this.updateCategoryFilterDropdown();
+            this.updateAppOverrideCategoryDropdown();
+            this.updateCustomPromptField();
         } catch (error) {
             console.error('Error loading settings:', error);
         }
@@ -706,6 +749,100 @@ class TimeTrackerUI {
         });
     }
 
+    updateAppOverrideCategoryDropdown() {
+        const categorySelect = document.getElementById('newAppCategorySelect');
+        if (!categorySelect) return;
+
+        // Keep the "Select category..." option
+        categorySelect.innerHTML = '<option value="">Select category...</option>';
+
+        // Add user's custom categories
+        this.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category.replace('_', ' ');
+            categorySelect.appendChild(option);
+        });
+    }
+
+    renderAppOverrides() {
+        const container = document.getElementById('appOverridesList');
+        if (!container) return;
+
+        if (!this.appOverrides || Object.keys(this.appOverrides).length === 0) {
+            container.innerHTML = '<div style="color:#6b7280;">No app overrides defined.</div>';
+            return;
+        }
+
+        container.innerHTML = Object.entries(this.appOverrides).map(([appName, override]) => `
+            <div class="app-override-item">
+                <div class="app-override-info">
+                    <div class="app-override-name">${appName}</div>
+                    <div class="app-override-category">Category: ${override.category.replace('_', ' ')}</div>
+                    ${override.description ? `<div class="app-override-description">${override.description}</div>` : ''}
+                </div>
+                <button class="remove-override-btn" data-app="${appName}">Remove</button>
+            </div>
+        `).join('');
+
+        // Attach remove handlers
+        container.querySelectorAll('.remove-override-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const appName = btn.getAttribute('data-app');
+                this.removeAppOverride(appName);
+            });
+        });
+    }
+
+    removeAppOverride(appName) {
+        delete this.appOverrides[appName];
+        this.renderAppOverrides();
+    }
+
+    updateCustomPromptField() {
+        const promptField = document.getElementById('customCategorizationPrompt');
+        if (promptField) {
+            promptField.value = this.customCategorizationPrompt;
+        }
+    }
+
+    getDefaultCategorizationPrompt() {
+        return `Categorize this activity into one of these categories:
+{categories}
+
+Activity: {appName} - {windowTitle}
+Current category: {currentCategory}
+
+Consider the following when categorizing:
+- Development tools: code editors, terminals, IDEs, git clients
+- Productivity: browsers, office apps, project management tools
+- Communication: chat apps, email clients, video conferencing
+- Social media: social networking, content sharing platforms
+- Entertainment: games, media players, streaming services
+- News: news websites, RSS readers, information sources
+- Shopping: e-commerce, online stores, payment platforms
+- System: system utilities, file managers, settings apps
+
+Respond with only the category name.`;
+    }
+
+    async testCustomPrompt() {
+        const prompt = document.getElementById('customCategorizationPrompt').value;
+        const testApp = { name: 'kitty', title: 'Terminal - nvim' };
+
+        try {
+            const result = await ipcRenderer.invoke('test-custom-prompt', { prompt, testApp });
+
+            if (result.success) {
+                this.showNotification(`Test result: ${testApp.name} → ${result.category}`, 'success');
+            } else {
+                this.showNotification(`Test failed: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error testing prompt', 'error');
+        }
+    }
+
     renderCategories() {
         const list = document.getElementById('categoriesList');
         if (!this.categories || this.categories.length === 0) {
@@ -741,13 +878,18 @@ class TimeTrackerUI {
 
     async saveSettings() {
         try {
+            // Update custom prompt from textarea
+            this.customCategorizationPrompt = document.getElementById('customCategorizationPrompt').value;
+
             const settings = {
                 autoStart: document.getElementById('autoStart').checked,
                 trackingInterval: parseInt(document.getElementById('trackingInterval').value),
                 aiEnabled: document.getElementById('aiEnabled').checked,
                 togetherApiKey: document.getElementById('togetherApiKey').value,
                 categories: this.categories,
-                categoryWeights: this.categoryWeights
+                categoryWeights: this.categoryWeights,
+                appOverrides: this.appOverrides,
+                customCategorizationPrompt: this.customCategorizationPrompt
             };
 
             await ipcRenderer.invoke('update-settings', settings);
@@ -756,6 +898,12 @@ class TimeTrackerUI {
             if (settings.togetherApiKey) {
                 await ipcRenderer.invoke('update-ai-api-key', settings.togetherApiKey);
             }
+
+            // Update app overrides
+            await ipcRenderer.invoke('update-app-overrides', this.appOverrides);
+
+            // Update custom prompt
+            await ipcRenderer.invoke('update-custom-prompt', this.customCategorizationPrompt);
 
             // Show success message
             this.showNotification('Settings saved successfully!', 'success');

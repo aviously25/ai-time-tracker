@@ -178,7 +178,10 @@ class TimeTrackerApp {
                 togetherApiKey: this.store.get('togetherApiKey', ''),
                 categories: this.store.get('categories', [
                     'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
-                ])
+                ]),
+                categoryWeights: this.store.get('categoryWeights', {}),
+                appOverrides: this.store.get('appOverrides', {}),
+                customCategorizationPrompt: this.store.get('customCategorizationPrompt', '')
             };
         });
 
@@ -188,6 +191,50 @@ class TimeTrackerApp {
                 this.aiAnalyzer.setApiKey(apiKey);
             }
             return { success: true };
+        });
+
+        // Update app overrides
+        ipcMain.handle('update-app-overrides', (event, overrides) => {
+            if (this.aiAnalyzer) {
+                this.aiAnalyzer.setAppOverrides(overrides);
+            }
+            return { success: true };
+        });
+
+        // Update custom categorization prompt
+        ipcMain.handle('update-custom-prompt', (event, prompt) => {
+            if (this.aiAnalyzer) {
+                this.aiAnalyzer.setCustomCategorizationPrompt(prompt);
+            }
+            return { success: true };
+        });
+
+        // Test custom prompt
+        ipcMain.handle('test-custom-prompt', async (event, { prompt, testApp }) => {
+            if (this.aiAnalyzer && this.aiAnalyzer.isEnabled()) {
+                try {
+                    const testActivity = {
+                        processName: testApp.name || 'test-app',
+                        windowTitle: testApp.title || 'Test Window',
+                        category: 'other'
+                    };
+
+                    // Temporarily set the custom prompt
+                    const originalPrompt = this.aiAnalyzer.customCategorizationPrompt;
+                    this.aiAnalyzer.setCustomCategorizationPrompt(prompt);
+
+                    // Test categorization
+                    const result = await this.aiAnalyzer.categorizeActivity(testActivity);
+
+                    // Restore original prompt
+                    this.aiAnalyzer.setCustomCategorizationPrompt(originalPrompt);
+
+                    return { success: true, category: result };
+                } catch (error) {
+                    return { success: false, error: error.message };
+                }
+            }
+            return { success: false, error: 'AI not enabled' };
         });
 
         // Update activity category

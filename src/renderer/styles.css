@@ -1039,3 +1039,120 @@ body {
     min-width: 40px;
     text-align: center;
 }
+
+/* App Overrides Styles */
+.app-overrides-list {
+    margin-bottom: 12px;
+}
+
+.app-override-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+}
+
+.app-override-info {
+    flex: 1;
+    margin-right: 12px;
+}
+
+.app-override-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.app-override-category {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 2px;
+}
+
+.app-override-description {
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.remove-override-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.remove-override-btn:hover {
+    background: #dc2626;
+}
+
+.add-override-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 8px;
+    margin-top: 12px;
+    align-items: end;
+}
+
+.add-override-row input,
+.add-override-row select {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.add-override-row button {
+    padding: 8px 16px;
+    white-space: nowrap;
+}
+
+/* Custom Prompt Styles */
+#customCategorizationPrompt {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    resize: vertical;
+    min-height: 120px;
+}
+
+.prompt-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.prompt-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* Responsive adjustments for app overrides */
+@media (max-width: 768px) {
+    .add-override-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .app-override-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .app-override-info {
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+}
