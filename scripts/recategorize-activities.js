@@ -28,6 +28,36 @@ function getDateRange(range) {
     }
 }
 
+// Group activities by process name to reduce API calls
+function groupActivitiesByProcess(activities) {
+    const groups = {};
+
+    activities.forEach(activity => {
+        const key = activity.process_name;
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+        groups[key].push(activity);
+    });
+
+    return groups;
+}
+
+// Create a batch prompt for multiple activities from the same process
+function createBatchPrompt(processName, activities, categories) {
+    const activityList = activities.map((activity, index) =>
+        `${index + 1}. ${activity.window_title}`
+    ).join('\n');
+
+    return `Categorize these activities from "${processName}" into one of these categories:
+${categories.map(cat => `- ${cat}`).join('\n')}
+
+Activities:
+${activityList}
+
+Respond with only the category names, one per line, in the same order as the activities above.`;
+}
+
 (async () => {
     const db = new DatabaseManager();
     await db.initialize();
@@ -35,14 +65,24 @@ function getDateRange(range) {
 
     // Manually enable AI if settings exist
     const Store = require('electron-store');
+    const store = new Store();
     const storePath = '/Users/aviudash/Library/Application Support/ai-time-tracker';
-    const store = new Store({ cwd: storePath });
-    const storedApiKey = store.get('togetherApiKey', '');
-    const storedAiEnabled = store.get('aiEnabled', true);
+    const store2 = new Store({ cwd: storePath });
+    const storedApiKey = store2.get('togetherApiKey', '');
+    const storedAiEnabled = store2.get('aiEnabled', true);
+    const storedCategories = store2.get('categories', []);
+
+    console.log('[SETTINGS LOADED]', {
+        hasApiKey: !!storedApiKey,
+        aiEnabled: storedAiEnabled,
+        categories: storedCategories
+    });
 
     if (storedApiKey) {
         ai.setApiKey(storedApiKey);
         ai.aiEnabled = storedAiEnabled;
+        // Set the categories from settings
+        ai.setCategories(storedCategories);
     }
 
     const [start, end] = getDateRange(range);
@@ -58,17 +98,69 @@ function getDateRange(range) {
     let total = activities.length;
     console.log(`Re-categorizing ${total} activities in range: ${range}`);
 
-    for (const activity of activities) {
-        const oldCategory = activity.category;
-        const newCategory = await ai.categorizeActivity(activity);
-        console.log(`[CHECK] ${activity.window_title} (${activity.process_name}) ${oldCategory} -> ${newCategory}`);
-        if (newCategory && newCategory !== oldCategory) {
-            await db.updateActivityCategory(activity.id, newCategory);
-            updated++;
-            console.log(`[UPDATED] ${activity.window_title} (${activity.process_name}) ${oldCategory} -> ${newCategory}`);
+    // Group activities by process name
+    const activityGroups = groupActivitiesByProcess(activities);
+    // Use the categories from settings, not hardcoded defaults
+    const categories = storedCategories && storedCategories.length > 0 ? storedCategories : ai.categories;
+
+    console.log(`Using categories:`, categories);
+    console.log(`Grouped into ${Object.keys(activityGroups).length} process groups for efficient processing`);
+
+    for (const [processName, processActivities] of Object.entries(activityGroups)) {
+        try {
+            console.log(`Processing ${processActivities.length} activities from "${processName}"...`);
+
+            // Create batch prompt
+            const prompt = createBatchPrompt(processName, processActivities, categories);
+
+            // Make single API call for all activities from this process
+            const messages = [
+                {
+                    role: 'system',
+                    content: 'You are a helpful assistant that categorizes computer activities. Respond with only category names, one per line.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ];
+
+            const response = await ai.together.chat.completions.create({
+                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                messages: messages,
+                max_tokens: 100,
+                temperature: 0.3,
+                top_p: 0.9
+            });
+
+            const responseText = response.choices[0].message.content.trim();
+            const suggestedCategories = responseText.split('\n').map(cat => cat.trim().toLowerCase()).filter(cat => cat);
+
+            console.log(`AI response for "${processName}":`, suggestedCategories);
+
+            // Update activities with new categories
+            for (let i = 0; i < processActivities.length && i < suggestedCategories.length; i++) {
+                const activity = processActivities[i];
+                const suggestedCategory = suggestedCategories[i];
+
+                // Validate category is in our list
+                if (categories.includes(suggestedCategory) && suggestedCategory !== activity.category) {
+                    await db.updateActivityCategory(activity.id, suggestedCategory);
+                    updated++;
+                    console.log(`[UPDATED] ${activity.window_title} (${activity.process_name}) ${activity.category} -> ${suggestedCategory}`);
+                }
+            }
+
+            // Add a small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error) {
+            console.error(`Error processing "${processName}":`, error);
+            // Continue with next group instead of failing completely
         }
     }
 
     console.log(`Done! Updated ${updated} of ${total} activities.`);
+    console.log(`Made ${Object.keys(activityGroups).length} API calls instead of ${total} individual calls.`);
     db.close();
 })(); 
