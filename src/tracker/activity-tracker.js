@@ -74,12 +74,6 @@ class ActivityTracker {
                 // Update current activity
                 this.currentActivity = activity;
                 this.lastActivityTime = new Date();
-                console.log('[TRACKED]', {
-                    timestamp: activity.timestamp,
-                    processName: activity.processName,
-                    windowTitle: activity.windowTitle,
-                    category: activity.category
-                });
             }
 
         } catch (error) {
