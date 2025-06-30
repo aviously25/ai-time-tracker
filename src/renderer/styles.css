@@ -802,6 +802,11 @@ body {
     max-height: 100%;
 }
 
+/* Timeline chart specific styles */
+#timelineChart {
+    max-height: 100%;
+}
+
 @media (max-width: 768px) {
     .chart-wrapper {
         height: 250px;

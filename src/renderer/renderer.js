@@ -1,5 +1,6 @@
 const { ipcRenderer } = require('electron');
-const Chart = require('chart.js/auto');
+// Chart.js is loaded globally via CDN script in index.html
+// const Chart = require('chart.js/auto');
 
 class TimeTrackerUI {
     constructor() {
@@ -21,10 +22,13 @@ class TimeTrackerUI {
     }
 
     init() {
+        console.log('TimeTrackerUI constructed');
         this.setupEventListeners();
         this.updateCurrentTime();
         this.loadInitialData();
+        console.log('TimeTrackerUI initialized');
         this.setupCharts();
+        console.log('TimeTrackerUI charts setup');
 
         // Update time every second
         setInterval(() => this.updateCurrentTime(), 1000);
@@ -356,6 +360,7 @@ class TimeTrackerUI {
     }
 
     setupCharts() {
+        console.log('setupCharts called');
         // Setup pie chart for activity distribution
         const pieCtx = document.getElementById('activityPieChart');
         if (pieCtx) {
@@ -399,6 +404,73 @@ class TimeTrackerUI {
                 }
             });
         }
+
+        // Setup timeline chart for daily activity
+        const timelineCtx = document.getElementById('timelineChart');
+        console.log('timelineCtx:', timelineCtx);
+        if (timelineCtx) {
+            console.log('Timeline chart initialized');
+            this.charts.timelineChart = new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (context) => {
+                                    const hour = context[0].label;
+                                    return `${hour}`;
+                                },
+                                label: (context) => {
+                                    const category = context.dataset.label;
+                                    const value = context.parsed.y;
+                                    return `${category}: ${this.formatDuration(value * 60)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            title: {
+                                display: true,
+                                text: 'Time of Day'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Duration (minutes)'
+                            },
+                            ticks: {
+                                callback: function (value) {
+                                    return Math.round(value) + 'm';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 
     generateChartColors() {
@@ -427,6 +499,7 @@ class TimeTrackerUI {
     }
 
     updateCharts(activityData, statistics) {
+        console.log('updateCharts called', activityData, statistics);
         // Update pie chart with category distribution
         if (this.charts.pieChart) {
             const categoryData = {};
@@ -448,6 +521,98 @@ class TimeTrackerUI {
             this.charts.pieChart.data.datasets[0].data = data;
             this.charts.pieChart.update();
         }
+
+        // Update timeline chart
+        if (this.charts.timelineChart) {
+            console.log('updateCharts: updating timeline chart');
+            this.updateTimelineChart(activityData);
+        }
+    }
+
+    updateTimelineChart(activityData) {
+        console.log('updateTimelineChart called', activityData);
+        if (!activityData || activityData.length === 0) {
+            // Clear chart if no data
+            this.charts.timelineChart.data.labels = [];
+            this.charts.timelineChart.data.datasets = [];
+            this.charts.timelineChart.update();
+            console.log('updateTimelineChart: no data, cleared chart');
+            return;
+        }
+
+        // Process data into hourly timeline
+        const timelineData = this.processTimelineData(activityData);
+        console.log('updateTimelineChart: processed data', timelineData);
+
+        // Update chart data
+        this.charts.timelineChart.data.labels = timelineData.labels;
+        this.charts.timelineChart.data.datasets = timelineData.datasets;
+        this.charts.timelineChart.update();
+        console.log('updateTimelineChart: chart data after update', this.charts.timelineChart.data);
+    }
+
+    processTimelineData(activityData) {
+        console.log('processTimelineData called', activityData);
+        // Get unique categories
+        const categories = [...new Set(activityData.map(a => a.category))];
+        const colors = this.generateChartColors();
+
+        // Create hourly buckets (24 hours)
+        const hourlyData = {};
+        for (let hour = 0; hour < 24; hour++) {
+            hourlyData[hour] = {};
+            categories.forEach(category => {
+                hourlyData[hour][category] = 0;
+            });
+        }
+
+        // Distribute activities across hours
+        activityData.forEach(activity => {
+            const startTime = new Date(activity.timestamp);
+            const startHour = startTime.getHours();
+            const duration = activity.duration || 0;
+            const category = activity.category || 'other';
+
+            // Add duration to the hour bucket
+            if (hourlyData[startHour]) {
+                hourlyData[startHour][category] += duration;
+            }
+        });
+
+        // Convert to chart format
+        const labels = [];
+        const datasets = [];
+
+        // Create labels for each hour
+        for (let hour = 0; hour < 24; hour++) {
+            const timeString = `${hour.toString().padStart(2, '0')}:00`;
+            labels.push(timeString);
+        }
+
+        // Create dataset for each category
+        categories.forEach((category, index) => {
+            const data = [];
+            for (let hour = 0; hour < 24; hour++) {
+                const durationMinutes = Math.round((hourlyData[hour][category] || 0) / 60);
+                data.push(durationMinutes);
+            }
+
+            datasets.push({
+                label: category.replace('_', ' '),
+                data: data,
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '20', // Add transparency
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 5
+            });
+        });
+
+        const result = { labels, datasets };
+        console.log('processTimelineData result', result);
+        return result;
     }
 
     updateLists(statistics) {
