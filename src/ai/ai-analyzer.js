@@ -158,7 +158,7 @@ Keep the response under 100 words and be encouraging.`;
             ];
 
             const response = await this.together.chat.completions.create({
-                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
                 messages: messages,
                 max_tokens: 20,
                 temperature: 0.3,
