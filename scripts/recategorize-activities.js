@@ -55,7 +55,14 @@ ${categories.map(cat => `- ${cat}`).join('\n')}
 Activities:
 ${activityList}
 
-Respond with only the category names, one per line, in the same order as the activities above.`;
+Examples of correct responses:
+For activities: "1. Google Search", "2. GitHub", "3. YouTube"
+Response: productivity, development, entertainment
+
+For activities: "1. Gmail", "2. Slack", "3. Zoom"
+Response: communication, communication, communication
+
+Respond with only the category names, separated by commas, in the same order as the activities above. Do not include numbers or any other formatting.`;
 }
 
 (async () => {
@@ -128,13 +135,18 @@ Respond with only the category names, one per line, in the same order as the act
             const response = await ai.together.chat.completions.create({
                 model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
                 messages: messages,
-                max_tokens: 100,
+                max_tokens: 1000,
                 temperature: 0.3,
                 top_p: 0.9
             });
 
             const responseText = response.choices[0].message.content.trim();
-            const suggestedCategories = responseText.split('\n').map(cat => cat.trim().toLowerCase()).filter(cat => cat);
+            // Parse comma-separated categories and clean up any numbering or extra formatting
+            const suggestedCategories = responseText
+                .split(/[,\n]/) // Split by comma or newline
+                .map(cat => cat.trim().toLowerCase())
+                .map(cat => cat.replace(/^\d+\.\s*/, '')) // Remove numbering like "1. " or "2. "
+                .filter(cat => cat && categories.includes(cat)); // Only keep valid categories
 
             console.log(`AI response for "${processName}":`, suggestedCategories);
 

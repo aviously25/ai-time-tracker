@@ -78,7 +78,11 @@ class TimeTrackerUI {
             const newCat = input.value.trim();
             if (newCat && !this.categories.includes(newCat)) {
                 this.categories.push(newCat);
+                this.updateCategoryWeight(newCat, this.getDefaultWeight(newCat));
                 this.renderCategories();
+                this.renderCategoryWeights();
+                this.updateCategoryFilterDropdown();
+                this.updateChartColors();
                 input.value = '';
             }
         });
@@ -213,17 +217,8 @@ class TimeTrackerUI {
     }
 
     calculateProductivityScore(activities) {
-        const categoryWeights = {
-            productivity: 1.0,
-            development: 1.0,
-            communication: 0.7,
-            news: 0.5,
-            social_media: 0.3,
-            entertainment: 0.2,
-            shopping: 0.3,
-            system: 0.5,
-            other: 0.5
-        };
+        // Get category weights from settings
+        const categoryWeights = this.getCategoryWeights();
 
         let totalTime = 0;
         let weightedTime = 0;
@@ -238,6 +233,75 @@ class TimeTrackerUI {
         return Math.min(10, Math.max(1, score));
     }
 
+    getCategoryWeights() {
+        // Get weights from settings, or generate defaults if not set
+        if (!this.categoryWeights) {
+            this.categoryWeights = this.generateDefaultWeights();
+        }
+        return this.categoryWeights;
+    }
+
+    generateDefaultWeights() {
+        const weights = {};
+
+        if (!this.categories || this.categories.length === 0) {
+            // Fallback to default categories if none are set
+            const defaultCategories = ['productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'];
+            defaultCategories.forEach(cat => {
+                weights[cat] = this.getDefaultWeight(cat);
+            });
+            return weights;
+        }
+
+        // Generate default weights for user's custom categories
+        this.categories.forEach(category => {
+            weights[category] = this.getDefaultWeight(category);
+        });
+
+        return weights;
+    }
+
+    getDefaultWeight(category) {
+        // Intelligent default weights based on category name
+        const categoryLower = category.toLowerCase();
+
+        // High productivity categories
+        if (categoryLower.includes('productivity') || categoryLower.includes('work') || categoryLower.includes('business')) return 1.0;
+        if (categoryLower.includes('development') || categoryLower.includes('coding') || categoryLower.includes('programming')) return 1.0;
+        if (categoryLower.includes('study') || categoryLower.includes('learning') || categoryLower.includes('education')) return 1.0;
+        if (categoryLower.includes('research') || categoryLower.includes('analysis')) return 0.9;
+
+        // Medium productivity categories
+        if (categoryLower.includes('communication') || categoryLower.includes('email') || categoryLower.includes('chat')) return 0.7;
+        if (categoryLower.includes('meeting') || categoryLower.includes('call') || categoryLower.includes('zoom')) return 0.7;
+        if (categoryLower.includes('planning') || categoryLower.includes('organize')) return 0.8;
+
+        // Neutral categories
+        if (categoryLower.includes('news') || categoryLower.includes('reading')) return 0.5;
+        if (categoryLower.includes('system') || categoryLower.includes('admin')) return 0.5;
+        if (categoryLower.includes('other') || categoryLower.includes('misc')) return 0.5;
+
+        // Lower productivity categories
+        if (categoryLower.includes('social') || categoryLower.includes('media')) return 0.3;
+        if (categoryLower.includes('entertainment') || categoryLower.includes('fun') || categoryLower.includes('play')) return 0.2;
+        if (categoryLower.includes('shopping') || categoryLower.includes('buy')) return 0.3;
+        if (categoryLower.includes('gaming') || categoryLower.includes('game')) return 0.1;
+
+        // Default weight for unknown categories
+        return 0.5;
+    }
+
+    updateCategoryWeight(category, weight) {
+        if (!this.categoryWeights) {
+            this.categoryWeights = this.generateDefaultWeights();
+        }
+        this.categoryWeights[category] = Math.max(0, Math.min(1, weight)); // Clamp between 0 and 1
+    }
+
+    getCategoryWeight(category) {
+        return this.getCategoryWeights()[category] || 0.5;
+    }
+
     setupCharts() {
         // Setup pie chart for activity distribution
         const pieCtx = document.getElementById('activityPieChart');
@@ -248,11 +312,7 @@ class TimeTrackerUI {
                     labels: [],
                     datasets: [{
                         data: [],
-                        backgroundColor: [
-                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
-                            '#8B5CF6', '#06B6D4', '#F97316', '#84CC16',
-                            '#EC4899', '#6B7280'
-                        ],
+                        backgroundColor: this.generateChartColors(),
                         borderWidth: 2,
                         borderColor: '#ffffff'
                     }]
@@ -285,6 +345,31 @@ class TimeTrackerUI {
                     }
                 }
             });
+        }
+    }
+
+    generateChartColors() {
+        // Generate colors for the chart based on the number of categories
+        const baseColors = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+            '#8B5CF6', '#06B6D4', '#F97316', '#84CC16',
+            '#EC4899', '#6B7280', '#84CC16', '#F472B6',
+            '#A78BFA', '#34D399', '#FBBF24', '#FB7185'
+        ];
+
+        // If we have more categories than base colors, cycle through them
+        const numCategories = this.categories ? this.categories.length : 10;
+        const colors = [];
+        for (let i = 0; i < numCategories; i++) {
+            colors.push(baseColors[i % baseColors.length]);
+        }
+        return colors;
+    }
+
+    updateChartColors() {
+        if (this.charts.pieChart) {
+            this.charts.pieChart.data.datasets[0].backgroundColor = this.generateChartColors();
+            this.charts.pieChart.update();
         }
     }
 
@@ -452,7 +537,8 @@ class TimeTrackerUI {
 
         activityItems.forEach(item => {
             const title = item.querySelector('.activity-title').textContent.toLowerCase();
-            const category = item.querySelector('.activity-category').textContent.toLowerCase();
+            const categorySelect = item.querySelector('.activity-category-select');
+            const category = categorySelect ? categorySelect.value.toLowerCase() : '';
 
             const matchesSearch = title.includes(searchTerm);
             const matchesCategory = !categoryFilter || category.includes(categoryFilter);
@@ -506,10 +592,71 @@ class TimeTrackerUI {
             this.categories = settings.categories || [
                 'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
             ];
+
+            // Load category weights from settings
+            this.categoryWeights = settings.categoryWeights || this.generateDefaultWeights();
+
             this.renderCategories();
+            this.renderCategoryWeights();
+            this.updateCategoryFilterDropdown();
         } catch (error) {
             console.error('Error loading settings:', error);
         }
+    }
+
+    renderCategoryWeights() {
+        const container = document.getElementById('categoryWeightsList');
+        if (!container) return;
+
+        if (!this.categories || this.categories.length === 0) {
+            container.innerHTML = '<div style="color:#6b7280;">No categories defined.</div>';
+            return;
+        }
+
+        container.innerHTML = this.categories.map(cat => {
+            const weight = this.getCategoryWeight(cat);
+            return `
+                <div class="category-weight-item">
+                    <span class="category-name">${cat.replace('_', ' ')}</span>
+                    <div class="weight-controls">
+                        <input type="range" 
+                               min="0" 
+                               max="1" 
+                               step="0.1" 
+                               value="${weight}" 
+                               class="weight-slider" 
+                               data-category="${cat}"
+                               oninput="this.nextElementSibling.textContent = (this.value * 10).toFixed(0) + '/10'">
+                        <span class="weight-value">${(weight * 10).toFixed(0)}/10</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach event listeners for weight sliders
+        container.querySelectorAll('.weight-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const category = e.target.getAttribute('data-category');
+                const weight = parseFloat(e.target.value);
+                this.updateCategoryWeight(category, weight);
+            });
+        });
+    }
+
+    updateCategoryFilterDropdown() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (!categoryFilter) return;
+
+        // Keep the "All Categories" option
+        categoryFilter.innerHTML = '<option value="">All Categories</option>';
+
+        // Add user's custom categories
+        this.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category.replace('_', ' ');
+            categoryFilter.appendChild(option);
+        });
     }
 
     renderCategories() {
@@ -535,7 +682,14 @@ class TimeTrackerUI {
 
     removeCategory(cat) {
         this.categories = this.categories.filter(c => c !== cat);
+        // Remove weight for deleted category
+        if (this.categoryWeights && this.categoryWeights[cat]) {
+            delete this.categoryWeights[cat];
+        }
         this.renderCategories();
+        this.renderCategoryWeights();
+        this.updateCategoryFilterDropdown();
+        this.updateChartColors();
     }
 
     async saveSettings() {
@@ -545,7 +699,8 @@ class TimeTrackerUI {
                 trackingInterval: parseInt(document.getElementById('trackingInterval').value),
                 aiEnabled: document.getElementById('aiEnabled').checked,
                 togetherApiKey: document.getElementById('togetherApiKey').value,
-                categories: this.categories
+                categories: this.categories,
+                categoryWeights: this.categoryWeights
             };
 
             await ipcRenderer.invoke('update-settings', settings);
