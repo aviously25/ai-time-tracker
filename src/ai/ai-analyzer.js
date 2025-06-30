@@ -1,7 +1,9 @@
 const Together = require('together-ai');
 const Store = require('electron-store');
 
-const model = "meta-llama/Llama-3.3-70B-Instruct-Turbo";
+const DEFAULT_CATEGORIES = [
+    'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
+];
 
 class AIAnalyzer {
     constructor() {
@@ -9,6 +11,7 @@ class AIAnalyzer {
         this.together = null;
         this.aiEnabled = this.store.get('aiEnabled', true);
         this.apiKey = this.store.get('togetherApiKey', '');
+        this.categories = this.store.get('categories', DEFAULT_CATEGORIES);
 
         if (this.apiKey) {
             this.together = new Together({
@@ -34,6 +37,11 @@ class AIAnalyzer {
         }
     }
 
+    setCategories(categories) {
+        this.categories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+        this.store.set('categories', this.categories);
+    }
+
     async analyzeActivity(activity) {
         if (!this.isEnabled() || !this.together) {
             return null;
@@ -52,7 +60,7 @@ class AIAnalyzer {
             ];
 
             const response = await this.together.chat.completions.create({
-                model: model,
+                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
                 messages: messages,
                 max_tokens: 150,
                 temperature: 0.7,
@@ -84,7 +92,7 @@ class AIAnalyzer {
             ];
 
             const response = await this.together.chat.completions.create({
-                model: model,
+                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
                 messages: messages,
                 max_tokens: 300,
                 temperature: 0.7,
@@ -159,6 +167,9 @@ Focus on being helpful, encouraging, and practical. Keep it under 200 words.`;
         }
 
         try {
+            // Use only categories from settings
+            const categoriesList = this.categories && this.categories.length > 0 ? this.categories : DEFAULT_CATEGORIES;
+            const categoriesText = categoriesList.map(cat => `- ${cat}:`).join(' ');
             const messages = [
                 {
                     role: 'system',
@@ -166,26 +177,12 @@ Focus on being helpful, encouraging, and practical. Keep it under 200 words.`;
                 },
                 {
                     role: 'user',
-                    content: `Categorize this activity into one of these categories:
-- productivity: Work-related tasks, email, documents, coding
-- development: Programming, technical work, learning
-- communication: Chat apps, video calls, messaging
-- social_media: Social networking sites
-- entertainment: Games, videos, music
-- news: Reading news, current events
-- shopping: Online shopping, e-commerce
-- system: File management, system tools
-- other: Everything else
-
-Activity: ${activity.processName} - ${activity.windowTitle}
-Current category: ${activity.category}
-
-Respond with only the category name.`
+                    content: `Categorize this activity into one of these categories:\n${categoriesList.map(cat => `- ${cat}`).join('\n')}\n\nActivity: ${activity.processName} - ${activity.windowTitle}\nCurrent category: ${activity.category}\n\nRespond with only the category name.`
                 }
             ];
 
             const response = await this.together.chat.completions.create({
-                model: model,
+                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
                 messages: messages,
                 max_tokens: 20,
                 temperature: 0.3,
@@ -193,7 +190,7 @@ Respond with only the category name.`
             });
 
             const category = response.choices[0].message.content.trim().toLowerCase();
-            return category || activity.category;
+            return categoriesList.includes(category) ? category : activity.category;
         } catch (error) {
             console.error('Error categorizing activity with TogetherAI:', error);
             return activity.category;
@@ -217,16 +214,12 @@ Respond with only the category name.`
                 },
                 {
                     role: 'user',
-                    content: `Based on these activities, provide a productivity score from 1-10 and brief explanation:
-
-${activitySummary}
-
-Respond in JSON format: {"score": number, "explanation": "string"}`
+                    content: `Based on these activities, provide a productivity score from 1-10 and brief explanation:\n\n${activitySummary}\n\nRespond in JSON format: {"score": number, "explanation": "string"}`
                 }
             ];
 
             const response = await this.together.chat.completions.create({
-                model: model,
+                model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
                 messages: messages,
                 max_tokens: 100,
                 temperature: 0.5,
@@ -252,17 +245,18 @@ Respond in JSON format: {"score": number, "explanation": "string"}`
     }
 
     calculateBasicScore(activities) {
-        const categoryWeights = {
-            productivity: 1.0,
-            development: 1.0,
-            communication: 0.7,
-            news: 0.5,
-            social_media: 0.3,
-            entertainment: 0.2,
-            shopping: 0.3,
-            system: 0.5,
-            other: 0.5
-        };
+        const categoriesList = this.categories && this.categories.length > 0 ? this.categories : DEFAULT_CATEGORIES;
+        const categoryWeights = Object.fromEntries(categoriesList.map(cat => [cat, 0.5]));
+        // Give some defaults for common categories
+        if (categoryWeights.productivity !== undefined) categoryWeights.productivity = 1.0;
+        if (categoryWeights.development !== undefined) categoryWeights.development = 1.0;
+        if (categoryWeights.communication !== undefined) categoryWeights.communication = 0.7;
+        if (categoryWeights.news !== undefined) categoryWeights.news = 0.5;
+        if (categoryWeights.social_media !== undefined) categoryWeights.social_media = 0.3;
+        if (categoryWeights.entertainment !== undefined) categoryWeights.entertainment = 0.2;
+        if (categoryWeights.shopping !== undefined) categoryWeights.shopping = 0.3;
+        if (categoryWeights.system !== undefined) categoryWeights.system = 0.5;
+        if (categoryWeights.other !== undefined) categoryWeights.other = 0.5;
 
         let totalTime = 0;
         let weightedTime = 0;

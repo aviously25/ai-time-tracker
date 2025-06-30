@@ -18,10 +18,19 @@ class ActivityTracker {
         this.isTracking = true;
         console.log('Activity tracking started');
 
-        // Track activity every 30 seconds
+        // Get tracking interval from settings or default to 30 seconds
+        let intervalSeconds = 30;
+        if (this.databaseManager && this.databaseManager.store) {
+            intervalSeconds = this.databaseManager.store.get('trackingInterval', 30);
+        } else if (this.aiAnalyzer && this.aiAnalyzer.store) {
+            intervalSeconds = this.aiAnalyzer.store.get('trackingInterval', 30);
+        }
+        if (typeof intervalSeconds !== 'number' || intervalSeconds < 5) intervalSeconds = 30;
+
+        // Track activity every intervalSeconds
         this.trackingInterval = setInterval(async () => {
             await this.trackCurrentActivity();
-        }, 30000);
+        }, intervalSeconds * 1000);
 
         // Initial tracking
         this.trackCurrentActivity();
@@ -53,7 +62,7 @@ class ActivityTracker {
                 return;
             }
 
-            const activity = this.parseActivity(activeWindow);
+            const activity = await this.parseActivity(activeWindow);
 
             // Check if activity has changed
             if (this.hasActivityChanged(activity)) {
@@ -65,6 +74,12 @@ class ActivityTracker {
                 // Update current activity
                 this.currentActivity = activity;
                 this.lastActivityTime = new Date();
+                console.log('[TRACKED]', {
+                    timestamp: activity.timestamp,
+                    processName: activity.processName,
+                    windowTitle: activity.windowTitle,
+                    category: activity.category
+                });
             }
 
         } catch (error) {
@@ -72,7 +87,7 @@ class ActivityTracker {
         }
     }
 
-    parseActivity(activeWindow) {
+    async parseActivity(activeWindow) {
         const now = new Date();
         const { title, owner, processName, url } = activeWindow;
 
@@ -92,13 +107,21 @@ class ActivityTracker {
                 const parsedUrl = new URL(url);
                 activity.url = url;
                 activity.domain = parsedUrl.hostname;
-                activity.category = this.categorizeWebsite(parsedUrl.hostname);
             } catch (error) {
                 console.log('Invalid URL:', url);
             }
+        }
+
+        // Use AI to categorize if enabled
+        if (this.aiAnalyzer && this.aiAnalyzer.isEnabled()) {
+            activity.category = await this.aiAnalyzer.categorizeActivity(activity);
         } else {
-            // Categorize application
-            activity.category = this.categorizeApplication(processName || owner?.name);
+            // Fallback to hardcoded categorization
+            if (activity.url || activity.domain) {
+                activity.category = this.categorizeWebsite(activity.domain || '');
+            } else {
+                activity.category = this.categorizeApplication(activity.processName);
+            }
         }
 
         return activity;

@@ -171,7 +171,10 @@ class TimeTrackerApp {
                 autoStart: this.store.get('autoStart', true),
                 trackingInterval: this.store.get('trackingInterval', 30),
                 aiEnabled: this.store.get('aiEnabled', true),
-                togetherApiKey: this.store.get('togetherApiKey', '')
+                togetherApiKey: this.store.get('togetherApiKey', ''),
+                categories: this.store.get('categories', [
+                    'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
+                ])
             };
         });
 
@@ -181,6 +184,15 @@ class TimeTrackerApp {
                 this.aiAnalyzer.setApiKey(apiKey);
             }
             return { success: true };
+        });
+
+        // Update activity category
+        ipcMain.handle('update-activity-category', async (event, { id, category }) => {
+            if (this.databaseManager) {
+                await this.databaseManager.updateActivityCategory(id, category);
+                return { success: true };
+            }
+            return { success: false };
         });
     }
 }

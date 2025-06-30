@@ -6,6 +6,9 @@ class TimeTrackerUI {
         this.currentDateRange = 'today';
         this.charts = {};
         this.isTracking = false;
+        this.categories = [
+            'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
+        ];
 
         this.init();
     }
@@ -68,6 +71,16 @@ class TimeTrackerUI {
 
         document.getElementById('categoryFilter').addEventListener('change', () => {
             this.filterActivities();
+        });
+
+        document.getElementById('addCategoryBtn').addEventListener('click', () => {
+            const input = document.getElementById('newCategoryInput');
+            const newCat = input.value.trim();
+            if (newCat && !this.categories.includes(newCat)) {
+                this.categories.push(newCat);
+                this.renderCategories();
+                input.value = '';
+            }
         });
     }
 
@@ -311,7 +324,7 @@ class TimeTrackerUI {
         }
 
         container.innerHTML = activities.map(activity => `
-            <div class="activity-item">
+            <div class="activity-item" data-activity-id="${activity.id}">
                 <div class="activity-icon">
                     <i class="fas ${this.getActivityIcon(activity.category)}"></i>
                 </div>
@@ -320,12 +333,34 @@ class TimeTrackerUI {
                     <div class="activity-meta">
                         <span>${activity.process_name}</span>
                         <span>${new Date(activity.timestamp).toLocaleTimeString()}</span>
-                        <span class="activity-category ${activity.category}">${activity.category.replace('_', ' ')}</span>
+                        <select class="activity-category-select" data-activity-id="${activity.id}">
+                            ${this.categories.map(cat => `
+                                <option value="${cat}" ${cat === activity.category ? 'selected' : ''}>${cat.replace('_', ' ')}</option>
+                            `).join('')}
+                        </select>
                     </div>
                 </div>
                 <div class="activity-time">${this.formatDuration(activity.duration)}</div>
             </div>
         `).join('');
+
+        // Attach change handlers for category dropdowns
+        container.querySelectorAll('.activity-category-select').forEach(select => {
+            select.addEventListener('change', async (e) => {
+                const activityId = select.getAttribute('data-activity-id');
+                const newCategory = select.value;
+                await this.updateActivityCategory(activityId, newCategory);
+            });
+        });
+    }
+
+    async updateActivityCategory(activityId, newCategory) {
+        try {
+            await ipcRenderer.invoke('update-activity-category', { id: activityId, category: newCategory });
+            this.showNotification('Category updated!', 'success');
+        } catch (error) {
+            this.showNotification('Failed to update category', 'error');
+        }
     }
 
     getActivityIcon(category) {
@@ -402,9 +437,39 @@ class TimeTrackerUI {
             document.getElementById('trackingInterval').value = settings.trackingInterval;
             document.getElementById('aiEnabled').checked = settings.aiEnabled;
             document.getElementById('togetherApiKey').value = settings.togetherApiKey || '';
+            this.categories = settings.categories || [
+                'productivity', 'development', 'communication', 'social_media', 'entertainment', 'news', 'shopping', 'system', 'other'
+            ];
+            this.renderCategories();
         } catch (error) {
             console.error('Error loading settings:', error);
         }
+    }
+
+    renderCategories() {
+        const list = document.getElementById('categoriesList');
+        if (!this.categories || this.categories.length === 0) {
+            list.innerHTML = '<div style="color:#6b7280;">No categories defined.</div>';
+            return;
+        }
+        list.innerHTML = this.categories.map(cat => `
+            <div class="category-item">
+                <span class="category-name">${cat}</span>
+                <button class="remove-category-btn" data-cat="${cat}">Remove</button>
+            </div>
+        `).join('');
+        // Attach remove handlers
+        list.querySelectorAll('.remove-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const cat = btn.getAttribute('data-cat');
+                this.removeCategory(cat);
+            });
+        });
+    }
+
+    removeCategory(cat) {
+        this.categories = this.categories.filter(c => c !== cat);
+        this.renderCategories();
     }
 
     async saveSettings() {
@@ -413,7 +478,8 @@ class TimeTrackerUI {
                 autoStart: document.getElementById('autoStart').checked,
                 trackingInterval: parseInt(document.getElementById('trackingInterval').value),
                 aiEnabled: document.getElementById('aiEnabled').checked,
-                togetherApiKey: document.getElementById('togetherApiKey').value
+                togetherApiKey: document.getElementById('togetherApiKey').value,
+                categories: this.categories
             };
 
             await ipcRenderer.invoke('update-settings', settings);

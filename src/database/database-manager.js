@@ -311,6 +311,20 @@ class DatabaseManager {
         });
     }
 
+    async updateActivityCategory(id, category) {
+        const query = `UPDATE activities SET category = ? WHERE id = ?`;
+        return new Promise((resolve, reject) => {
+            this.db.run(query, [category, id], function (err) {
+                if (err) {
+                    console.error('Error updating activity category:', err);
+                    reject(err);
+                } else {
+                    resolve(true);
+                }
+            });
+        });
+    }
+
     close() {
         if (this.db) {
             this.db.close((err) => {
