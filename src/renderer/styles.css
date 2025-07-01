@@ -1391,3 +1391,55 @@ body {
     color: #374151;
     font-weight: 500;
 }
+
+/* Condensed sort bar styles */
+.condensed-sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 14px 0 10px 0;
+    padding: 0 4px;
+}
+
+.sort-label {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.sort-select {
+    padding: 7px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #f9fafb;
+    color: #374151;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.sort-select:focus {
+    border-color: #6366f1;
+}
+
+.sort-dir-btn {
+    background: #f3f4f6;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 16px;
+    color: #6366f1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.sort-dir-btn:hover {
+    background: #e0e7ff;
+}
+
+.sort-dir-btn i {
+    font-size: 18px;
+    pointer-events: none;
+}

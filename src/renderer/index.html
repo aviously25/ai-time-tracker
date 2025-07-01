@@ -30,6 +30,10 @@
                     <i class="fas fa-list"></i>
                     <span>Activities</span>
                 </a>
+                <a href="#condensed" class="nav-item" data-section="condensed">
+                    <i class="fas fa-list"></i>
+                    <span>Condensed</span>
+                </a>
                 <a href="#settings" class="nav-item" data-section="settings">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
@@ -186,6 +190,20 @@
                         <small>Start tracking to see your activities here</small>
                     </div>
                 </div>
+            </section>
+
+            <!-- Condensed Section -->
+            <section id="condensed" class="content-section">
+                <div class="activities-header">
+                    <h2>Condensed Activities</h2>
+                    <div class="activities-filters">
+                        <input type="text" id="condensedActivitySearch" placeholder="Search activities...">
+                        <select id="condensedCategoryFilter"></select>
+                        <button id="refreshCondensedActivities" class="refresh-btn"><i
+                                class="fas fa-sync-alt"></i></button>
+                    </div>
+                </div>
+                <div id="condensedActivitiesList" class="activities-list"></div>
             </section>
 
             <!-- Settings Section -->

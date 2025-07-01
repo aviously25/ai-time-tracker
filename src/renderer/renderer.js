@@ -30,6 +30,8 @@ class TimeTrackerUI {
         this.totalActivitiesPages = 1;
         this.allActivities = [];
         this.iconMap = {}; // Added for icon map
+        this.condensedActivities = [];
+        this.condensedSortAsc = true;
 
         this.init();
     }
@@ -144,6 +146,17 @@ class TimeTrackerUI {
         document.getElementById('testPromptBtn').addEventListener('click', () => {
             this.testCustomPrompt();
         });
+
+        // Condensed activities filters
+        document.getElementById('condensedActivitySearch').addEventListener('input', () => {
+            this.filterCondensedActivities();
+        });
+        document.getElementById('condensedCategoryFilter').addEventListener('change', () => {
+            this.filterCondensedActivities();
+        });
+        document.getElementById('refreshCondensedActivities').addEventListener('click', () => {
+            this.loadCondensedActivities();
+        });
     }
 
     navigateToSection(section) {
@@ -177,6 +190,8 @@ class TimeTrackerUI {
             // Clear activities data when switching to dashboard
             this.allActivities = [];
             if (this.filteredActivities) this.filteredActivities = [];
+        } else if (section === 'condensed') {
+            this.loadCondensedActivities();
         } else {
             // Clear all data when going to settings
             this.allActivities = [];
@@ -1270,10 +1285,9 @@ Respond with only the category name.`;
 
     formatDuration(seconds) {
         if (!seconds) return '0m';
-
+        if (seconds < 60) return `${seconds}s`;
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
-
         if (hours > 0) {
             return `${hours}h ${minutes}m`;
         } else {
@@ -1432,6 +1446,141 @@ Respond with only the category name.`;
             this.charts.timelineChart.data.labels = [];
             this.charts.timelineChart.data.datasets = [];
         }
+    }
+
+    async loadCondensedActivities() {
+        // Fetch all activities for the current date range
+        const activities = await ipcRenderer.invoke('get-activity-data', this.currentDateRange);
+        // Group by processName + windowTitle + category
+        const groups = {};
+        activities.forEach(act => {
+            const key = `${act.processName}|||${act.windowTitle}|||${act.category}`;
+            if (!groups[key]) {
+                groups[key] = {
+                    processName: act.processName,
+                    windowTitle: act.windowTitle,
+                    category: act.category,
+                    duration: 0,
+                    count: 0
+                };
+            }
+            groups[key].duration += act.duration || 0;
+            groups[key].count += 1;
+        });
+        this.condensedActivities = Object.values(groups);
+        // Set default sort: duration descending
+        this.condensedSortAsc = false;
+        this.renderCondensedCategoryFilter();
+        // Set default sort field if not set
+        const sortField = document.getElementById('condensedSortField');
+        if (sortField) sortField.value = 'duration';
+        this.filterCondensedActivities();
+    }
+
+    renderCondensedCategoryFilter() {
+        const filter = document.getElementById('condensedCategoryFilter');
+        if (!filter) return;
+        filter.innerHTML = '<option value="">All Categories</option>';
+        (this.categories || []).forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat.replace('_', ' ');
+            filter.appendChild(option);
+        });
+        // Add sorting controls if not present
+        let sortBar = document.getElementById('condensedSortBar');
+        if (!sortBar) {
+            sortBar = document.createElement('div');
+            sortBar.id = 'condensedSortBar';
+            sortBar.className = 'condensed-sort-bar';
+            sortBar.innerHTML = `
+                <label for="condensedSortField" class="sort-label">Sort by:</label>
+                <select id="condensedSortField" class="sort-select">
+                    <option value="duration">Total Time</option>
+                    <option value="count">Sessions</option>
+                    <option value="processName">App Name</option>
+                    <option value="windowTitle">Window Title</option>
+                </select>
+                <button id="condensedSortDir" class="sort-dir-btn" title="Toggle sort direction"><i class="fas fa-chevron-down"></i></button>
+            `;
+            filter.parentNode.parentNode.insertBefore(sortBar, filter.parentNode.nextSibling);
+            document.getElementById('condensedSortField').addEventListener('change', () => this.filterCondensedActivities());
+            document.getElementById('condensedSortDir').addEventListener('click', () => {
+                this.condensedSortAsc = !this.condensedSortAsc;
+                this.updateCondensedSortDirIcon();
+                this.filterCondensedActivities();
+            });
+        }
+        this.updateCondensedSortDirIcon();
+    }
+
+    updateCondensedSortDirIcon() {
+        const btn = document.getElementById('condensedSortDir');
+        if (btn) {
+            btn.innerHTML = this.condensedSortAsc ? '<i class="fas fa-chevron-up"></i>' : '<i class="fas fa-chevron-down"></i>';
+        }
+    }
+
+    filterCondensedActivities() {
+        const search = document.getElementById('condensedActivitySearch').value.toLowerCase();
+        const cat = document.getElementById('condensedCategoryFilter').value;
+        const sortField = document.getElementById('condensedSortField')?.value || 'duration';
+        const asc = !!this.condensedSortAsc;
+        let filtered = (this.condensedActivities || []).filter(act => {
+            const matchesSearch = act.windowTitle.toLowerCase().includes(search) || act.processName.toLowerCase().includes(search);
+            const matchesCat = !cat || act.category === cat;
+            return matchesSearch && matchesCat;
+        });
+        // Sort
+        filtered.sort((a, b) => {
+            let vA = a[sortField], vB = b[sortField];
+            if (sortField === 'processName' || sortField === 'windowTitle') {
+                vA = vA.toLowerCase();
+                vB = vB.toLowerCase();
+                if (vA < vB) return asc ? -1 : 1;
+                if (vA > vB) return asc ? 1 : -1;
+                return 0;
+            } else {
+                // duration or count
+                return asc ? vA - vB : vB - vA;
+            }
+        });
+        this.renderCondensedActivities(filtered);
+    }
+
+    renderCondensedActivities(activities) {
+        const container = document.getElementById('condensedActivitiesList');
+        if (!container) return;
+        if (!activities || activities.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-list"></i><p>No condensed activities found</p></div>`;
+            return;
+        }
+        container.innerHTML = activities.map(act => {
+            // Use icon from iconMap
+            let iconHtml = '';
+            const processKey = act.processName;
+            const iconBase64 = this.iconMap && processKey ? this.iconMap[processKey] : null;
+            if (iconBase64) {
+                iconHtml = `<img src="${iconBase64}" alt="${processKey}" class="activity-app-icon">`;
+            } else {
+                iconHtml = `<i class="fas ${this.getActivityIcon(act.category)}"></i>`;
+            }
+            const catColor = this.categoryColors[act.category] || '#cccccc';
+            return `
+                <div class="activity-item improved-activity-row" style="border-left: 6px solid ${catColor};">
+                    <div class="activity-icon">${iconHtml}</div>
+                    <div class="activity-content">
+                        <div class="activity-title">${act.windowTitle}</div>
+                        <div class="activity-meta">
+                            <span>${act.processName}</span>
+                            <span class="activity-category ${act.category}">${act.category.replace('_', ' ')}</span>
+                            <span>${act.count} sessions</span>
+                        </div>
+                    </div>
+                    <div class="activity-time">${this.formatDuration(act.duration)}</div>
+                </div>
+            `;
+        }).join('');
     }
 }
 
