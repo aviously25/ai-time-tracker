@@ -1,4 +1,4 @@
-const activeWin = require('active-win');
+const { AppleScriptTracker } = require('../utils/applescript-tracker');
 const cron = require('node-cron');
 const { URL } = require('url');
 const { IconExtractor } = require('../utils/icon-extractor');
@@ -8,6 +8,7 @@ class ActivityTracker {
         this.databaseManager = databaseManager;
         this.aiAnalyzer = aiAnalyzer;
         this.iconExtractor = new IconExtractor();
+        this.appleScriptTracker = new AppleScriptTracker();
         this.isTracking = false;
         this.trackingInterval = null;
         this.currentActivity = null;
@@ -65,10 +66,27 @@ class ActivityTracker {
                 return;
             }
 
-            const activeWindow = await activeWin();
+            // Check if AppleScript tracker is supported
+            if (!this.appleScriptTracker.isSupported()) {
+                console.error('AppleScript tracker is not supported on this platform');
+                return;
+            }
+
+            let activeWindow = await this.appleScriptTracker.getActiveWindow();
+
+            // Fallback to simple method if the main method fails
+            if (!activeWindow) {
+                console.log('Trying fallback method for active window detection');
+                const fallbackWindow = await this.appleScriptTracker.getSimpleActiveWindow();
+                if (!fallbackWindow) {
+                    console.log('No active window detected');
+                    return;
+                }
+                activeWindow = fallbackWindow;
+            }
 
             if (!activeWindow || this.ignoredApps.includes(activeWindow.processName)) {
-                console.log('No active window detected');
+                console.log('No active window detected or ignored app');
                 return;
             }
 

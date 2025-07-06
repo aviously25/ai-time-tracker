@@ -144,7 +144,7 @@ src/
 - **SQLite**: Local data storage
 - **Chart.js**: Interactive data visualization
 - **TogetherAI API**: AI-powered insights using Llama models
-- **active-win**: Window and application tracking
+- **AppleScript**: Window and application tracking (macOS only)
 
 ### Contributing
 
@@ -162,9 +162,9 @@ src/
 - All data is stored locally on your device
 
 ### Permissions Required
-- **macOS**: Accessibility permissions for window tracking
-- **Windows**: No additional permissions required
-- **Linux**: May require additional setup for window tracking
+- **macOS**: No additional permissions required (uses AppleScript)
+- **Windows**: Not supported (macOS only)
+- **Linux**: Not supported (macOS only)
 
 ## Troubleshooting
 
@@ -188,16 +188,15 @@ src/
 ### Platform-Specific Notes
 
 **macOS**
-- Grant accessibility permissions in System Preferences > Security & Privacy
-- The app may need to be added to the accessibility list
+- No additional permissions required
+- Uses native AppleScript for window tracking
+- No screen recording permissions needed
 
 **Windows**
-- No additional setup required
-- App runs with standard user permissions
+- Not supported in this version
 
 **Linux**
-- May require `xdotool` or similar for window tracking
-- Check distribution-specific requirements
+- Not supported in this version
 
 ## License
 
