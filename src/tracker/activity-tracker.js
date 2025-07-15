@@ -19,10 +19,13 @@ class ActivityTracker {
     }
 
     startTracking() {
-        if (this.isTracking) return;
+        if (this.isTracking) {
+            console.log('Tracking already in progress, ignoring start request');
+            return;
+        }
 
+        console.log('Starting activity tracking...');
         this.isTracking = true;
-        console.log('Activity tracking started');
 
         // Get tracking interval from settings or default to 30 seconds
         let intervalSeconds = 30;
@@ -33,36 +36,48 @@ class ActivityTracker {
         }
         if (typeof intervalSeconds !== 'number' || intervalSeconds < 5) intervalSeconds = 30;
 
+        console.log(`Tracking interval set to ${intervalSeconds} seconds`);
+
         // Track activity every intervalSeconds
         this.trackingInterval = setInterval(async () => {
             await this.trackCurrentActivity();
         }, intervalSeconds * 1000);
+
+        console.log('Activity tracking started successfully');
 
         // Initial tracking
         this.trackCurrentActivity();
     }
 
     stopTracking() {
-        if (!this.isTracking) return;
+        if (!this.isTracking) {
+            console.log('Tracking not in progress, ignoring stop request');
+            return;
+        }
 
+        console.log('Stopping activity tracking...');
         this.isTracking = false;
+
         if (this.trackingInterval) {
             clearInterval(this.trackingInterval);
             this.trackingInterval = null;
+            console.log('Tracking interval cleared');
         }
 
         // Save the last activity before stopping (only if not sleeping)
         if (this.currentActivity && !this.isSystemSleeping) {
+            console.log('Saving final activity before stopping');
             this.saveActivity(this.currentActivity);
         }
 
-        console.log('Activity tracking stopped');
+        console.log('Activity tracking stopped successfully');
     }
 
     async trackCurrentActivity() {
         try {
             // Don't track if system is sleeping
             if (this.isSystemSleeping) {
+                console.log('System is sleeping, skipping activity tracking');
                 return;
             }
 
@@ -72,28 +87,33 @@ class ActivityTracker {
                 return;
             }
 
+            console.log('Getting active window...');
             let activeWindow = await this.appleScriptTracker.getActiveWindow();
 
             // Fallback to simple method if the main method fails
             if (!activeWindow) {
-                console.log('Trying fallback method for active window detection');
+                console.log('Main method failed, trying fallback method for active window detection');
                 const fallbackWindow = await this.appleScriptTracker.getSimpleActiveWindow();
                 if (!fallbackWindow) {
-                    console.log('No active window detected');
+                    console.log('No active window detected from fallback method either');
                     return;
                 }
                 activeWindow = fallbackWindow;
             }
 
+            console.log('Active window detected:', activeWindow);
+
             if (!activeWindow || this.ignoredApps.includes(activeWindow.processName)) {
-                console.log('No active window detected or ignored app');
+                console.log('No active window detected or ignored app:', activeWindow?.processName);
                 return;
             }
 
             const activity = await this.parseActivity(activeWindow);
+            console.log('Parsed activity:', activity);
 
             // Check if activity has changed
             if (this.hasActivityChanged(activity)) {
+                console.log('Activity has changed, saving previous and updating current');
                 // Save previous activity
                 if (this.currentActivity) {
                     this.saveActivity(this.currentActivity);
@@ -102,6 +122,8 @@ class ActivityTracker {
                 // Update current activity
                 this.currentActivity = activity;
                 this.lastActivityTime = new Date();
+            } else {
+                console.log('Activity has not changed, continuing current activity');
             }
 
         } catch (error) {

@@ -104,26 +104,33 @@ class TimeTrackerApp {
     }
 
     async initializeServices() {
-        try {
-            // Initialize database
-            this.databaseManager = new DatabaseManager();
-            await this.databaseManager.initialize();
+        console.log('Initializing services...');
 
-            // Initialize AI analyzer
-            this.aiAnalyzer = new AIAnalyzer();
+        // Initialize database
+        this.databaseManager = new DatabaseManager();
+        this.databaseManager.initialize().then(() => {
+            console.log('Database initialized successfully');
+        }).catch(error => {
+            console.error('Failed to initialize database:', error);
+        });
 
-            // Initialize activity tracker
-            this.activityTracker = new ActivityTracker(this.databaseManager, this.aiAnalyzer);
+        // Initialize AI analyzer
+        this.aiAnalyzer = new AIAnalyzer();
+        console.log('AI Analyzer initialized');
 
-            // Start tracking automatically if enabled
-            const autoStart = this.store.get('autoStart', true);
-            if (autoStart) {
+        // Initialize activity tracker
+        this.activityTracker = new ActivityTracker(this.databaseManager, this.aiAnalyzer);
+        console.log('Activity tracker initialized');
+
+        // Auto-start tracking if enabled
+        const autoStart = this.store.get('autoStart', true);
+        console.log('Auto-start setting:', autoStart);
+
+        if (autoStart) {
+            console.log('Auto-starting activity tracking...');
+            setTimeout(() => {
                 this.activityTracker.startTracking();
-            }
-
-            console.log('All services initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize services:', error);
+            }, 2000); // Give some time for everything to initialize
         }
     }
 

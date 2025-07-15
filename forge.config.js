@@ -4,6 +4,8 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
+    // Add debug info for troubleshooting
+    debug: true,
   },
   rebuildConfig: {},
   makers: [
@@ -38,7 +40,8 @@ module.exports = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      // Allow loading files from outside ASAR for temp file operations
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };

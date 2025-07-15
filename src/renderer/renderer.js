@@ -41,8 +41,9 @@ class TimeTrackerUI {
         this.iconMap = await ipcRenderer.invoke('get-app-icons');
         this.setupEventListeners();
         this.updateCurrentTime();
-        this.loadInitialData();
+        await this.loadInitialData();
         this.setupCharts();
+        this.updateChartColors();
 
         // Update time every second
         setInterval(() => this.updateCurrentTime(), 1000);
@@ -547,9 +548,11 @@ class TimeTrackerUI {
                 }
                 categoryData[category] += activity.duration || 0;
             });
+
             const labels = Object.keys(categoryData).map(cat => cat.replace('_', ' '));
             const data = Object.values(categoryData).map(seconds => Math.round(seconds / 60));
             const cats = Object.keys(categoryData);
+
             this.charts.pieChart.data.labels = labels;
             this.charts.pieChart.data.datasets[0].data = data;
             this.charts.pieChart.data.datasets[0].backgroundColor = this.generateChartColors(cats);
